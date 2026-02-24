@@ -1,11 +1,15 @@
 import { connectToDatabase } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function updateUserProgress(userId: string, newPoints: number) {
   const { db } = await connectToDatabase();
   
   try {
+    if (!ObjectId.isValid(userId)) return null;
+    const _id = new ObjectId(userId);
+
     // Get current user data
-    const user = await db.collection('users').findOne({ _id: userId });
+    const user = await db.collection('users').findOne({ _id });
     if (!user) return;
 
     const currentLevel = user.level || 1;
@@ -31,7 +35,7 @@ export async function updateUserProgress(userId: string, newPoints: number) {
     // Only update if there are changes
     if (newLevel !== currentLevel || newBadges.length !== currentBadges.length) {
       await db.collection('users').updateOne(
-        { _id: userId },
+        { _id },
         {
           $set: {
             level: newLevel,

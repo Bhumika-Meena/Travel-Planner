@@ -123,34 +123,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-export async function GETAll(request: NextRequest) {
-  try {
-    const userId = request.headers.get('user-id');
-    if (!userId) {
-      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
-    }
-
-    const { db } = await connectToDatabase();
-
-    // Validate ObjectId
-    if (!ObjectId.isValid(userId)) {
-      return NextResponse.json({ error: 'Invalid user ID format' }, { status: 400 });
-    }
-
-    // Find all trips for the user
-    const trips = await db.collection('trips')
-      .find({ userId: new ObjectId(userId) })
-      .toArray();
-
-    console.log('Found trips:', trips.map(t => ({ id: t._id, destination: t.destination })));
-
-    return NextResponse.json(trips);
-  } catch (error) {
-    console.error('Error fetching trips:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch trips' },
-      { status: 500 }
-    );
-  }
-} 

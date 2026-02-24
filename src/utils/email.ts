@@ -63,6 +63,7 @@ export async function sendVerificationEmail(email: string, otp: string) {
 
 export async function sendPasswordResetEmail(email: string, resetToken: string) {
   try {
+    const transporter = createTransporter();
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}`;
     const info = await transporter.sendMail({
       from: `"Travel Planner" <${process.env.EMAIL_SERVER_USER}>`,
@@ -96,6 +97,7 @@ export async function sendEmail({
   html: string;
 }) {
   try {
+    const transporter = createTransporter();
     const info = await transporter.sendMail({
       from: `"Travel Planner" <${process.env.EMAIL_SERVER_USER}>`,
       to,

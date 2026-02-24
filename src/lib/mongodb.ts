@@ -1,4 +1,5 @@
 import { MongoClient } from 'mongodb';
+import mongoose from 'mongoose';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
@@ -33,3 +34,32 @@ export async function connectToDatabase() {
   const db = client.db(process.env.MONGODB_DB);
   return { client, db };
 } 
+
+type MongooseCache = {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+};
+
+const globalWithMongoose = global as typeof globalThis & {
+  _mongoose?: MongooseCache;
+};
+
+const mongooseCache: MongooseCache =
+  globalWithMongoose._mongoose ?? { conn: null, promise: null };
+
+globalWithMongoose._mongoose = mongooseCache;
+
+export default async function connectDB() {
+  if (mongooseCache.conn) return mongooseCache.conn;
+
+  if (!mongooseCache.promise) {
+    mongooseCache.promise = mongoose
+      .connect(uri, {
+        ...(process.env.MONGODB_DB ? { dbName: process.env.MONGODB_DB } : {}),
+      })
+      .then((m) => m);
+  }
+
+  mongooseCache.conn = await mongooseCache.promise;
+  return mongooseCache.conn;
+}

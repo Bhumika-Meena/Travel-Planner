@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import Cookies from 'js-cookie';
-import { User } from '@/types/user';
 import { calculateLevel, formatDate, formatPoints } from '@/lib/utils';
 
 interface UserProfilePageProps {

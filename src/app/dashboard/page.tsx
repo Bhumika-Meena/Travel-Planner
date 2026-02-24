@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Cookies from 'js-cookie';
 import Image from 'next/image';
@@ -38,6 +38,7 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || 'http://localhost:
 
 export default function Dashboard() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
   const [pastTrips, setPastTrips] = useState<Trip[]>([]);
@@ -369,18 +370,11 @@ export default function Dashboard() {
 
   // Mark messages as read when visiting a chat room
   useEffect(() => {
-    const handleRouteChange = (url: string) => {
-      const match = url.match(/\/chat\/(\w+)/);
-      if (match) {
-        const chatUserId = match[1];
-        setUnreadMessages((prev) => prev.filter((u) => u.userId !== chatUserId));
-      }
-    };
-    router.events?.on?.('routeChangeStart', handleRouteChange);
-    return () => {
-      router.events?.off?.('routeChangeStart', handleRouteChange);
-    };
-  }, [router]);
+    const match = pathname.match(/\/chat\/([^/]+)/);
+    if (!match) return;
+    const chatUserId = match[1];
+    setUnreadMessages((prev) => prev.filter((u) => u.userId !== chatUserId));
+  }, [pathname]);
 
   if (loading) {
     return (
