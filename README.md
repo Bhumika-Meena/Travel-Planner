@@ -1,4 +1,4 @@
-# 🌍 Gamified Travel Planner
+#  Travel Planner
 
 ![Next.js](https://img.shields.io/badge/Next.js-000?logo=nextdotjs&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
