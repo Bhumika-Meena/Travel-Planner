@@ -1,12 +1,44 @@
 import { MongoClient } from 'mongodb';
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Fix for Node.js DNS resolution timeout on Windows/local networks querying MongoDB SRV TXT records
+try {
+  dns.setServers(['1.1.1.1', '1.0.0.1', '8.8.8.8']);
+} catch {
+  // Graceful fallback if environment restricts setServers
+}
+
+import { validateEnvironment } from '@/lib/env';
+
+// Startup environment validation
+const envCheck = validateEnvironment();
+if (envCheck.errors.length > 0) {
+  console.error('[Configuration Error]:', envCheck.errors.join('; '));
+}
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
 }
 
-const uri = process.env.MONGODB_URI;
-const options = {};
+function resolveDirectMongoUri(rawUri: string): string {
+  if (rawUri.startsWith('mongodb+srv://') && rawUri.includes('cluster0.q9regdz.mongodb.net')) {
+    const authMatch = rawUri.match(/^mongodb\+srv:\/\/([^@]+)@cluster0\.q9regdz\.mongodb\.net/);
+    if (authMatch) {
+      const auth = authMatch[1];
+      const db = process.env.MONGODB_DB || 'travel_planner';
+      return `mongodb://${auth}@ac-axlvfbf-shard-00-00.q9regdz.mongodb.net:27017,ac-axlvfbf-shard-00-01.q9regdz.mongodb.net:27017,ac-axlvfbf-shard-00-02.q9regdz.mongodb.net:27017/${db}?ssl=true&replicaSet=atlas-qc4g00-shard-0&authSource=admin&retryWrites=true&w=majority`;
+    }
+  }
+  return rawUri;
+}
+
+const uri = resolveDirectMongoUri(process.env.MONGODB_URI);
+const defaultDb = process.env.MONGODB_DB || 'travel_planner';
+const options = {
+  serverSelectionTimeoutMS: 10000,
+  connectTimeoutMS: 10000,
+};
 
 let client;
 let clientPromise: Promise<MongoClient>;
@@ -16,11 +48,17 @@ if (process.env.NODE_ENV === 'development') {
   // is preserved across module reloads caused by HMR (Hot Module Replacement).
   let globalWithMongo = global as typeof globalThis & {
     _mongoClientPromise?: Promise<MongoClient>;
+    _mongoClientUri?: string;
   };
 
-  if (!globalWithMongo._mongoClientPromise) {
+  if (!globalWithMongo._mongoClientPromise || globalWithMongo._mongoClientUri !== uri) {
     client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
+    globalWithMongo._mongoClientUri = uri;
+    globalWithMongo._mongoClientPromise = client.connect().catch((err) => {
+      delete globalWithMongo._mongoClientPromise;
+      delete globalWithMongo._mongoClientUri;
+      throw err;
+    });
   }
   clientPromise = globalWithMongo._mongoClientPromise;
 } else {
@@ -31,7 +69,7 @@ if (process.env.NODE_ENV === 'development') {
 
 export async function connectToDatabase() {
   const client = await clientPromise;
-  const db = client.db(process.env.MONGODB_DB);
+  const db = client.db(defaultDb);
   return { client, db };
 } 
 
@@ -55,7 +93,9 @@ export default async function connectDB() {
   if (!mongooseCache.promise) {
     mongooseCache.promise = mongoose
       .connect(uri, {
-        ...(process.env.MONGODB_DB ? { dbName: process.env.MONGODB_DB } : {}),
+        dbName: defaultDb,
+        serverSelectionTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
       })
       .then((m) => m);
   }

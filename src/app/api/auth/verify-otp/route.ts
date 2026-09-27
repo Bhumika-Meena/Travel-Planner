@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(`verify-otp:${clientIp}`, 5, 60 * 1000);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { message: 'Too many verification attempts. Please wait a minute and try again.' },
+        { status: 429 }
+      );
+    }
+
     const { email, otp } = await request.json();
 
     if (!email || !otp) {
@@ -14,14 +24,42 @@ export async function POST(request: Request) {
 
     const { db } = await connectToDatabase();
 
-    // Find the OTP record
+    // Find the active OTP record by email
     const otpRecord = await db.collection('otps').findOne({
       email: email.toLowerCase(),
-      otp,
       expiresAt: { $gt: new Date() }
     });
 
     if (!otpRecord) {
+      return NextResponse.json(
+        { message: 'Invalid or expired OTP' },
+        { status: 400 }
+      );
+    }
+
+    // Check if maximum failed attempts exceeded
+    if ((otpRecord.failedAttempts || 0) >= 5) {
+      await db.collection('otps').deleteOne({ _id: otpRecord._id });
+      return NextResponse.json(
+        { message: 'Too many failed attempts. Please request a new verification code.' },
+        { status: 400 }
+      );
+    }
+
+    // Check OTP match
+    if (otpRecord.otp !== otp) {
+      const newAttempts = (otpRecord.failedAttempts || 0) + 1;
+      if (newAttempts >= 5) {
+        await db.collection('otps').deleteOne({ _id: otpRecord._id });
+        return NextResponse.json(
+          { message: 'Too many failed attempts. Please request a new verification code.' },
+          { status: 400 }
+        );
+      }
+      await db.collection('otps').updateOne(
+        { _id: otpRecord._id },
+        { $inc: { failedAttempts: 1 } }
+      );
       return NextResponse.json(
         { message: 'Invalid or expired OTP' },
         { status: 400 }

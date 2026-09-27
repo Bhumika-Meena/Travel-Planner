@@ -1,24 +1,25 @@
 import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
-// Generate a 6-digit OTP
+// Generate a cryptographically secure 6-digit OTP
 export const generateOTP = (): string => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 // Check email configuration
-const checkEmailConfig = () => {
-  if (!process.env.EMAIL_SERVER_USER || !process.env.EMAIL_SERVER_PASSWORD) {
-    console.error('Email configuration is missing. Please check your .env file.');
-    console.error('Required variables: EMAIL_SERVER_USER, EMAIL_SERVER_PASSWORD');
-    return false;
-  }
+const isEmailConfigValid = (): boolean => {
+  const user = process.env.EMAIL_SERVER_USER;
+  const pass = process.env.EMAIL_SERVER_PASSWORD;
+  if (!user || !pass) return false;
+  if (user.includes('your-email') || user.includes('example.com')) return false;
+  if (pass.includes('xxxx') || pass.includes('your-gmail-app-password')) return false;
   return true;
 };
 
 // Create transporter only if configuration is valid
 const createTransporter = () => {
-  if (!checkEmailConfig()) {
-    throw new Error('Email configuration is invalid');
+  if (!isEmailConfigValid()) {
+    throw new Error('Email credentials not properly configured in .env');
   }
 
   return nodemailer.createTransport({
@@ -32,6 +33,22 @@ const createTransporter = () => {
 
 // Send verification email with OTP
 export async function sendVerificationEmail(email: string, otp: string) {
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (!isEmailConfigValid()) {
+    if (!isProd) {
+      console.log(`\n======================================================`);
+      console.log(`📧 [DEV EMAIL] Email service unconfigured / dev mode.`);
+      console.log(`👤 Recipient: ${email}`);
+      console.log(`🔑 Verification OTP: ${otp}`);
+      console.log(`👉 Enter this OTP on /verify-email to verify your account.`);
+      console.log(`======================================================\n`);
+    } else {
+      console.error('[Email Service] SMTP credentials not configured in production. Cannot dispatch verification email.');
+    }
+    return { messageId: isProd ? 'unconfigured-email' : 'dev-mock-otp' };
+  }
+
   try {
     const transporter = createTransporter();
     const info = await transporter.sendMail({
@@ -47,24 +64,43 @@ export async function sendVerificationEmail(email: string, otp: string) {
       `,
     });
 
-    console.log('Verification email sent successfully:', info.messageId);
+    if (!isProd) {
+      console.log('Verification email sent successfully:', info.messageId);
+    }
     return info;
   } catch (error) {
-    console.error('Error sending verification email:', error);
-    if (error instanceof Error) {
-      console.error('Error details:', error.message);
-      if (error.message.includes('Invalid login')) {
-        console.error('Please check your Gmail credentials and App Password');
-      }
+    console.error('Error sending verification email via SMTP:', error);
+    // Never log OTPs in production even on SMTP failure
+    if (!isProd) {
+      console.log(`\n======================================================`);
+      console.log(`⚠️ [DEV FALLBACK] SMTP error. Use this OTP for local testing:`);
+      console.log(`👤 Recipient: ${email}`);
+      console.log(`🔑 Verification OTP: ${otp}`);
+      console.log(`======================================================\n`);
     }
-    throw error;
+    return { messageId: 'smtp-dispatch-failed' };
   }
 }
 
 export async function sendPasswordResetEmail(email: string, resetToken: string) {
+  const isProd = process.env.NODE_ENV === 'production';
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+  
+  if (!isEmailConfigValid()) {
+    if (!isProd) {
+      console.log(`\n======================================================`);
+      console.log(`📧 [DEV EMAIL] Password reset requested.`);
+      console.log(`👤 Recipient: ${email}`);
+      console.log(`🔗 Reset Link: ${resetUrl}`);
+      console.log(`======================================================\n`);
+    } else {
+      console.error('[Email Service] SMTP credentials not configured in production. Cannot dispatch reset email.');
+    }
+    return { messageId: isProd ? 'unconfigured-email' : 'dev-mock-reset' };
+  }
+
   try {
     const transporter = createTransporter();
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}`;
     const info = await transporter.sendMail({
       from: `"Travel Planner" <${process.env.EMAIL_SERVER_USER}>`,
       to: email,
@@ -79,11 +115,21 @@ export async function sendPasswordResetEmail(email: string, resetToken: string) 
       `,
     });
 
-    console.log('Password reset email sent:', info.messageId);
+    if (!isProd) {
+      console.log('Password reset email sent:', info.messageId);
+    }
     return info;
   } catch (error) {
-    console.error('Error sending password reset email:', error);
-    throw error;
+    console.error('Error sending password reset email via SMTP:', error);
+    // Never log reset links or secrets in production
+    if (!isProd) {
+      console.log(`\n======================================================`);
+      console.log(`⚠️ [DEV FALLBACK] SMTP error. Use this Reset URL for local testing:`);
+      console.log(`👤 Recipient: ${email}`);
+      console.log(`🔗 Reset Link: ${resetUrl}`);
+      console.log(`======================================================\n`);
+    }
+    return { messageId: 'smtp-dispatch-failed' };
   }
 }
 
@@ -96,6 +142,21 @@ export async function sendEmail({
   subject: string;
   html: string;
 }) {
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (!isEmailConfigValid()) {
+    if (!isProd) {
+      console.log(`\n======================================================`);
+      console.log(`📧 [DEV EMAIL] Email dispatch simulated:`);
+      console.log(`👤 To: ${to}`);
+      console.log(`📝 Subject: ${subject}`);
+      console.log(`======================================================\n`);
+    } else {
+      console.error('[Email Service] SMTP credentials not configured in production.');
+    }
+    return { messageId: isProd ? 'unconfigured-email' : 'dev-mock-email' };
+  }
+
   try {
     const transporter = createTransporter();
     const info = await transporter.sendMail({
@@ -105,10 +166,12 @@ export async function sendEmail({
       html,
     });
 
-    console.log('Email sent:', info.messageId);
+    if (!isProd) {
+      console.log('Email sent:', info.messageId);
+    }
     return info;
   } catch (error) {
     console.error('Error sending email:', error);
-    throw error;
+    return { messageId: 'failed-email' };
   }
 } 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
+import { useAuth } from '@/context/AuthContext';
 
 interface Place {
   name: string;
@@ -13,6 +13,7 @@ interface Place {
 
 export default function PlanTrip() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<Place[]>([]);
@@ -26,6 +27,12 @@ export default function PlanTrip() {
     name: '',
     description: '',
   });
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   // Fetch suggestions when form data changes
   useEffect(() => {
@@ -61,17 +68,14 @@ export default function PlanTrip() {
     setError('');
 
     try {
-      const userCookie = Cookies.get('user');
-      if (!userCookie) {
+      if (!user) {
         throw new Error('User not authenticated');
       }
 
-      const user = JSON.parse(userCookie);
       const response = await fetch('/api/trips', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'user-id': user._id
         },
         body: JSON.stringify({
           ...formData,

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { getAuthSession } from '@/lib/auth';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -34,6 +36,17 @@ const fallbackRecommendations = [
 
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const session = await getAuthSession(request);
+    const rateLimitKey = session?.userId ? `ai-rec:user:${session.userId}` : `ai-rec:ip:${clientIp}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 10, 60 * 1000);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { message: 'Too many requests. Please wait a moment before asking for recommendations again.' },
+        { status: 429 }
+      );
+    }
+
     const { destination, startDate, endDate } = await request.json();
 
     if (!destination || !startDate || !endDate) {
@@ -43,19 +56,28 @@ export async function POST(request: Request) {
       );
     }
 
+    if (typeof destination !== 'string' || destination.trim().length === 0 || destination.length > 100) {
+      return NextResponse.json(
+        { message: 'Destination must be a text between 1 and 100 characters' },
+        { status: 400 }
+      );
+    }
+
+    const cleanDestination = destination.trim().slice(0, 100);
+
     if (!process.env.GEMINI_API_KEY) {
-      console.error('Gemini API key not found');
+      console.warn('Gemini API key not configured, returning fallback recommendations');
       return NextResponse.json({
         recommendations: fallbackRecommendations,
-        message: 'Using fallback recommendations due to missing API key'
+        message: 'Using fallback recommendations'
       });
     }
 
-    // Try to get recommendations from Gemini
+    // Try to get recommendations from Gemini with an 8-second timeout
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
-      const prompt = `Generate a list of recommended places to visit in ${destination} between ${startDate} and ${endDate}. 
+      const prompt = `Generate a list of recommended places to visit in ${cleanDestination} between ${startDate} and ${endDate}. 
       For each place, provide:
       1. Name of the place
       2. Brief description (2-3 sentences)
@@ -71,7 +93,12 @@ export async function POST(request: Request) {
         }
       ]`;
 
-      const result = await model.generateContent(prompt);
+      const generatePromise = model.generateContent(prompt);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Gemini API timed out')), 8000)
+      );
+
+      const result = await Promise.race([generatePromise, timeoutPromise]);
       const response = await result.response;
       const text = response.text();
       

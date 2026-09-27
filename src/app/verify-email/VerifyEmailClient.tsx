@@ -8,8 +8,9 @@ export default function VerifyEmailClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
+  const codeParam = searchParams.get('code');
 
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState(codeParam || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -104,7 +105,7 @@ export default function VerifyEmailClient() {
             Verify Your Email
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            We've sent a verification code to {email}
+            We&apos;ve sent a verification code to {email}
           </p>
         </div>
 
@@ -130,6 +131,11 @@ export default function VerifyEmailClient() {
           )}
 
           <div>
+            {codeParam && (
+              <div className="mb-3 text-xs bg-blue-50 text-blue-700 p-2.5 rounded-lg border border-blue-200 text-center font-medium">
+                💡 Verification code ({codeParam}) prefilled for testing! Click verify below.
+              </div>
+            )}
             <label htmlFor="otp" className="sr-only">
               Verification Code
             </label>

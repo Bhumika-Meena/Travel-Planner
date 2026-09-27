@@ -2,9 +2,19 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { sendEmail } from '@/utils/email';
 import crypto from 'crypto';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(`forgot-password:${clientIp}`, 3, 60 * 1000);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { message: 'Too many password reset requests. Please wait a minute and try again.' },
+        { status: 429 }
+      );
+    }
+
     const { email } = await request.json();
 
     if (!email) {

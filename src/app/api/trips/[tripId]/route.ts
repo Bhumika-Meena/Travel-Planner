@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { getAuthSession } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { tripId: string } }
 ) {
   try {
-    const userId = request.headers.get('user-id');
+    const session = await getAuthSession(request);
+    const userId = session?.userId;
     if (!userId) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
@@ -46,9 +48,10 @@ export async function DELETE(
   try {
     console.log('Attempting to delete trip:', params.tripId);
     
-    const userId = request.headers.get('user-id');
+    const session = await getAuthSession(request);
+    const userId = session?.userId;
     if (!userId) {
-      console.error('No user-id header found');
+      console.error('No authenticated user found');
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
@@ -90,6 +93,15 @@ export async function DELETE(
         details: 'The trip could not be deleted. Please try again.'
       }, { status: 500 });
     }
+
+    // Pull from user's trips array and decrement totalTrips
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $pull: { trips: new ObjectId(params.tripId) } as any,
+        $inc: { totalTrips: -1 }
+      }
+    );
 
     console.log('Successfully deleted trip:', params.tripId);
     return NextResponse.json({ success: true });

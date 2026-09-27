@@ -1,58 +1,60 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { calculateLevel, computeBadges, getLevelProgress, BADGES } from '@/lib/gamification';
 
-export async function updateUserProgress(userId: string, newPoints: number) {
-  const { db } = await connectToDatabase();
-  
+export { calculateLevel, getLevelProgress, computeBadges, BADGES };
+export type { BadgeDefinition } from '@/lib/gamification';
+
+/**
+ * Atomically update user progress in database (points, level, badges)
+ */
+export async function updateUserProgress(
+  userId: string,
+  newTotalPoints: number
+): Promise<{
+  levelUp: boolean;
+  newLevel: number;
+  newBadges: string[];
+} | null> {
+  if (!ObjectId.isValid(userId)) return null;
+
   try {
-    if (!ObjectId.isValid(userId)) return null;
-    const _id = new ObjectId(userId);
-
-    // Get current user data
-    const user = await db.collection('users').findOne({ _id });
-    if (!user) return;
+    const { db } = await connectToDatabase();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    if (!user) return null;
 
     const currentLevel = user.level || 1;
-    const currentPoints = user.points || 0;
-    const currentTrips = user.totalTrips || 0;
-    const currentBadges = user.badges || [];
+    const currentBadges = Array.isArray(user.badges) ? user.badges : [];
+    const totalTrips = user.totalTrips || 0;
 
-    // Calculate new level based on trips
-    const newLevel = Math.floor(currentTrips / 5) + 1;
-    
-    // Calculate new badges based on points
-    const newBadges = [...currentBadges];
-    const pointsForBadge = 50;
-    const totalBadges = Math.floor(newPoints / pointsForBadge);
-    
-    for (let i = 1; i <= totalBadges; i++) {
-      const badgeName = `Explorer ${i}`;
-      if (!newBadges.includes(badgeName)) {
-        newBadges.push(badgeName);
-      }
-    }
+    const newLevel = calculateLevel(newTotalPoints);
+    const { allBadges, newBadges } = computeBadges(newTotalPoints, totalTrips, currentBadges);
 
-    // Only update if there are changes
-    if (newLevel !== currentLevel || newBadges.length !== currentBadges.length) {
+    const hasLevelChanged = newLevel !== currentLevel;
+    const hasBadgesChanged = newBadges.length > 0;
+
+    if (hasLevelChanged || hasBadgesChanged) {
       await db.collection('users').updateOne(
-        { _id },
+        { _id: new ObjectId(userId) },
         {
           $set: {
             level: newLevel,
-            badges: newBadges
-          }
+            badges: allBadges,
+            updatedAt: new Date(),
+          },
         }
       );
 
       return {
         levelUp: newLevel > currentLevel,
-        newBadges: newBadges.filter(badge => !currentBadges.includes(badge))
+        newLevel,
+        newBadges,
       };
     }
 
     return null;
   } catch (error) {
-    console.error('Error updating user progress:', error);
+    console.error('Error updating user gamification progress:', error);
     return null;
   }
-} 
+}

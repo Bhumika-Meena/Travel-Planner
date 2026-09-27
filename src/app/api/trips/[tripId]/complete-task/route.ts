@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { updateUserProgress } from '@/utils/userProgress';
+import { getAuthSession } from '@/lib/auth';
+import { calculateTaskReward } from '@/lib/gamification';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,35 +12,28 @@ export async function POST(
   { params }: { params: { tripId: string } }
 ) {
   try {
-    console.log('Received request to complete task for trip:', params.tripId);
-    
-    const userId = request.headers.get('user-id');
+    const session = await getAuthSession(request);
+    const userId = session?.userId;
     if (!userId) {
-      console.error('No user-id header found');
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
     const body = await request.json();
     const { placeIndex } = body;
-    
-    console.log('Request body:', { placeIndex, userId });
 
-    if (typeof placeIndex !== 'number') {
-      console.error('Invalid placeIndex:', placeIndex);
+    if (typeof placeIndex !== 'number' || !Number.isInteger(placeIndex) || placeIndex < 0) {
       return NextResponse.json({ error: 'Invalid place index' }, { status: 400 });
     }
 
-    const { db } = await connectToDatabase();
-    console.log('Connected to database');
-
-    // Validate ObjectId
+    // Validate ObjectId format
     if (!ObjectId.isValid(params.tripId) || !ObjectId.isValid(userId)) {
-      console.error('Invalid ObjectId:', { tripId: params.tripId, userId });
       return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
     }
 
     const tripObjectId = new ObjectId(params.tripId);
     const userObjectId = new ObjectId(userId);
+
+    const { db, client } = await connectToDatabase();
 
     // Find the trip
     const trip = await db.collection('trips').findOne({
@@ -47,81 +42,129 @@ export async function POST(
     });
 
     if (!trip) {
-      console.error('Trip not found:', { tripId: params.tripId, userId });
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    console.log('Found trip:', trip._id);
-
     // Check if the place exists and is not already completed
     if (!trip.places || !Array.isArray(trip.places) || !trip.places[placeIndex]) {
-      console.error('Invalid place index:', placeIndex);
       return NextResponse.json({ error: 'Invalid place index' }, { status: 400 });
     }
 
     if (!trip.places[placeIndex].isSelected) {
-      console.error('Place already completed:', placeIndex);
       return NextResponse.json({ error: 'Place already completed' }, { status: 400 });
     }
 
-    const pointsToAdd = trip.places[placeIndex].points || 0;
+    // Authoritative Server-Side Reward Calculation:
+    // Client-provided points are NEVER trusted. Points are strictly determined by server rules.
+    const pointsToAdd = calculateTaskReward(trip.places[placeIndex]);
 
-    // Get current user data for proper points calculation
-    const user = await db.collection('users').findOne({ _id: userObjectId });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    let newPoints = 0;
+    let transactionCompleted = false;
 
-    const currentPoints = user.points || 0;
+    // 1. Attempt replica-set transaction for strict ACID atomicity across trips & users collections
+    try {
+      const mongoSession = client.startSession();
+      try {
+        await mongoSession.withTransaction(async () => {
+          // Atomically mark place as completed ONLY if currently isSelected: true
+          const tripRes = await db.collection('trips').updateOne(
+            { 
+              _id: tripObjectId,
+              userId: userObjectId,
+              [`places.${placeIndex}.isSelected`]: true
+            },
+            {
+              $set: {
+                [`places.${placeIndex}.isSelected`]: false,
+                [`places.${placeIndex}.completedAt`]: new Date()
+              }
+            },
+            { session: mongoSession }
+          );
 
-    // Update the place status
-    const updatedPlaces = [...trip.places];
-    updatedPlaces[placeIndex] = {
-      ...updatedPlaces[placeIndex],
-      isSelected: false
-    };
+          if (tripRes.modifiedCount === 0) {
+            throw new Error('ALREADY_COMPLETED');
+          }
 
-    // Update trip
-    const result = await db.collection('trips').updateOne(
-      { 
-        _id: tripObjectId,
-        userId: userObjectId
-      },
-      {
-        $set: { places: updatedPlaces },
-        $inc: { totalPoints: pointsToAdd }
+          // Atomically increment user points within the same transaction
+          const userRes = await db.collection('users').findOneAndUpdate(
+            { _id: userObjectId },
+            { $inc: { points: pointsToAdd } },
+            { returnDocument: 'after', session: mongoSession }
+          );
+
+          newPoints = (userRes as any)?.points ?? ((userRes as any)?.value?.points ?? pointsToAdd);
+        });
+        transactionCompleted = true;
+      } finally {
+        await mongoSession.endSession();
       }
-    );
-
-    if (result.modifiedCount === 0) {
-      console.error('Failed to update trip:', { tripId: params.tripId, userId });
-      return NextResponse.json({ error: 'Failed to update trip' }, { status: 500 });
+    } catch (txErr: any) {
+      if (txErr.message === 'ALREADY_COMPLETED') {
+        return NextResponse.json({ error: 'Place already completed' }, { status: 400 });
+      }
+      // If transactions are not supported on this MongoDB instance (e.g. standalone Mongo), fall back to compensated atomic execution
     }
 
-    // Update user's total points
-    const userUpdateResult = await db.collection('users').updateOne(
-      { _id: userObjectId },
-      { $inc: { points: pointsToAdd } }
-    );
+    // 2. Compensated atomic execution fallback if transactions are unavailable
+    if (!transactionCompleted) {
+      // Step A: Atomically mark place as completed
+      const tripRes = await db.collection('trips').updateOne(
+        { 
+          _id: tripObjectId,
+          userId: userObjectId,
+          [`places.${placeIndex}.isSelected`]: true
+        },
+        {
+          $set: {
+            [`places.${placeIndex}.isSelected`]: false,
+            [`places.${placeIndex}.completedAt`]: new Date()
+          }
+        }
+      );
 
-    if (userUpdateResult.modifiedCount === 0) {
-      console.error('Failed to update user points:', { userId });
-      return NextResponse.json({ error: 'Failed to update user points' }, { status: 500 });
+      if (tripRes.modifiedCount === 0) {
+        return NextResponse.json({ error: 'Place already completed' }, { status: 400 });
+      }
+
+      // Step B: Atomically increment user points with rollback compensation
+      try {
+        const userUpdateResult = await db.collection('users').findOneAndUpdate(
+          { _id: userObjectId },
+          { $inc: { points: pointsToAdd } },
+          { returnDocument: 'after' }
+        );
+        newPoints = (userUpdateResult as any)?.points ?? ((userUpdateResult as any)?.value?.points ?? pointsToAdd);
+      } catch (userErr) {
+        // Rollback place completion so user does not lose points if database operation fails
+        console.error('Failed to increment points after place completion. Rolling back place status:', userErr);
+        await db.collection('trips').updateOne(
+          {
+            _id: tripObjectId,
+            userId: userObjectId,
+            [`places.${placeIndex}.isSelected`]: false
+          },
+          {
+            $set: { [`places.${placeIndex}.isSelected`]: true },
+            $unset: { [`places.${placeIndex}.completedAt`]: "" }
+          }
+        );
+        throw new Error('Database operation failed while awarding points. Place completion was rolled back safely.');
+      }
     }
 
-    // Check and update level/badges with the correct total points
-    const progressUpdate = await updateUserProgress(userId, currentPoints + pointsToAdd);
+    // Check and update level/badges with the new authoritative total points
+    const progressUpdate = await updateUserProgress(userId, newPoints);
 
-    console.log('Successfully completed task');
     return NextResponse.json({
       success: true,
-      points: currentPoints + pointsToAdd,
+      points: newPoints,
       progressUpdate
     }, { status: 200 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error completing task:', error);
     return NextResponse.json(
-      { error: 'Failed to complete task' },
+      { error: error?.message || 'Failed to complete task' },
       { status: 500 }
     );
   }

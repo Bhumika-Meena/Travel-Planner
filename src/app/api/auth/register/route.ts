@@ -1,33 +1,43 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
-import { sendVerificationEmail } from '@/utils/email';
+import { sendVerificationEmail, generateOTP } from '@/utils/email';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { validatePassword } from '@/utils/validation';
 
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(`register:${clientIp}`, 5, 60 * 1000);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { message: 'Too many registration requests. Please wait a minute and try again.' },
+        { status: 429 }
+      );
+    }
     const body = await request.json();
-    console.log('Received registration data:', {
-      ...body,
-      password: '[REDACTED]' // Never log actual passwords
-    });
 
     const { fullName, email, password } = body;
 
-    // Debug logging without sensitive data
-    console.log('Parsed fields:', {
-      fullName,
-      email,
-      password: password ? '[REDACTED]' : undefined
-    });
-
     if (!fullName || !email || !password) {
-      console.log('Missing fields:', {
-        fullName: !fullName,
-        email: !email,
-        password: !password
-      });
       return NextResponse.json(
         { message: 'All fields are required', details: { fullName: !fullName, email: !email, password: !password } },
+        { status: 400 }
+      );
+    }
+
+    if (typeof fullName !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
+      return NextResponse.json(
+        { message: 'Invalid input format' },
+        { status: 400 }
+      );
+    }
+
+    // Enforce password length, type, and complexity on the server
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return NextResponse.json(
+        { message: passwordValidation.error || 'Password does not meet security requirements' },
         { status: 400 }
       );
     }
@@ -58,22 +68,32 @@ export async function POST(request: Request) {
         );
 
         // Send new verification email
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otp = generateOTP();
         await db.collection('otps').updateOne(
           { email: email.toLowerCase() },
           {
             $set: {
               otp,
               expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+              failedAttempts: 0,
             },
           },
           { upsert: true }
         );
 
-        await sendVerificationEmail(email, otp);
+        try {
+          await sendVerificationEmail(email, otp);
+        } catch (emailErr) {
+          console.warn('Verification email dispatch warning:', emailErr);
+        }
+
+        const isDev = process.env.NODE_ENV === 'development';
 
         return NextResponse.json(
-          { message: 'Verification email sent' },
+          { 
+            message: 'Verification email sent',
+            ...(isDev ? { devOtp: otp } : {})
+          },
           { status: 200 }
         );
       }
@@ -86,23 +106,38 @@ export async function POST(request: Request) {
       email: email.toLowerCase(),
       password: hashedPassword,
       isVerified: false,
+      points: 0,
+      level: 1,
+      totalTrips: 0,
+      badges: [],
+      trips: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     // Generate and store OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = generateOTP();
     await db.collection('otps').insertOne({
       email: email.toLowerCase(),
       otp,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      failedAttempts: 0,
     });
 
     // Send verification email
-    await sendVerificationEmail(email, otp);
+    try {
+      await sendVerificationEmail(email, otp);
+    } catch (emailErr) {
+      console.warn('Verification email dispatch warning:', emailErr);
+    }
+
+    const isDev = process.env.NODE_ENV === 'development';
 
     return NextResponse.json(
-      { message: 'Verification email sent' },
+      {
+        message: 'Verification email sent',
+        ...(isDev ? { devOtp: otp } : {}),
+      },
       { status: 201 }
     );
   } catch (error) {

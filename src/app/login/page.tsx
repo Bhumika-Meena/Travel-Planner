@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Cookies from 'js-cookie';
 import { validateLoginEmail, validateLoginPassword } from '@/utils/loginValidation';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Login() {
   const router = useRouter();
+  const { user, refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -19,20 +20,11 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const userCookie = Cookies.get('user');
-    if (userCookie) {
-      try {
-        const userData = JSON.parse(userCookie);
-        if (userData._id) {
-          router.push('/dashboard');
-        }
-      } catch (error) {
-        // If there's an error parsing the cookie, clear it
-        Cookies.remove('user');
-      }
+    // If user is already authenticated via JWT session, redirect to dashboard
+    if (user) {
+      router.push('/dashboard');
     }
-  }, [router]);
+  }, [user, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -113,14 +105,14 @@ export default function Login() {
         throw new Error(data.message || 'Failed to login');
       }
 
-      // Store user data in cookie
-      Cookies.set('user', JSON.stringify(data.user), { expires: 7 }); // Cookie expires in 7 days
+      // Refresh authentication state via verified session
+      await refreshUser();
       setSuccess(true);
       
-      // Add a small delay before redirecting to ensure the cookie is set
+      // Redirect to dashboard
       setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1000);
+        router.push('/dashboard');
+      }, 500);
     } catch (err: any) {
       console.error('Login error:', err);
       setErrors({ submit: err.message || 'Failed to login' });

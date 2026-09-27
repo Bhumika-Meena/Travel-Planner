@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import Cookies from 'js-cookie';
 import { calculateLevel, formatDate, formatPoints } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { Avatar } from '@/components/Avatar';
 
 interface UserProfilePageProps {
   params: {
@@ -33,6 +34,7 @@ interface User {
 export default function UserProfilePage({ params }: UserProfilePageProps) {
   const { userId } = params;
   const router = useRouter();
+  const { user: currentUser, loading: authLoading, refreshUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,20 +48,15 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    const userCookie = Cookies.get('user');
-    if (!userCookie) {
+    if (authLoading) return;
+    if (!currentUser) {
       router.push('/login');
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(userCookie);
-      setIsOwnProfile(currentUser._id === userId);
-      fetchUserProfile();
-    } catch (error) {
-      router.push('/login');
-    }
-  }, [userId, router]);
+    setIsOwnProfile(currentUser._id === userId);
+    fetchUserProfile();
+  }, [userId, currentUser, authLoading, router]);
 
   const fetchUserProfile = async () => {
     try {
@@ -110,9 +107,7 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
       const updatedUser = await response.json();
       setUser(updatedUser);
       setEditing(false);
-      
-      // Update cookie with new user data
-      Cookies.set('user', JSON.stringify(updatedUser));
+      await refreshUser();
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setError(err.message);
@@ -202,22 +197,11 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6">
             <div className="flex items-center space-x-4">
-              <div className="relative h-24 w-24">
-                {user.profilePicture ? (
-                  <Image
-                    src={user.profilePicture}
-                    alt="Profile"
-                    fill
-                    className="rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-500 text-xl">
-                      {user.fullName.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-              </div>
+              <Avatar
+                src={user.profilePicture}
+                name={user.fullName}
+                size="xl"
+              />
               <div>
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
                   {user.fullName}
@@ -285,7 +269,12 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
                   </p>
                 </div>
               ) : (
-                <p className="text-gray-500">None</p>
+                <p className="text-gray-500 text-sm flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Private or no active trip
+                </p>
               )}
             </div>
           </div>

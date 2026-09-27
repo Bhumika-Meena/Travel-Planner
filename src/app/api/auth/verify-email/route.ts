@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import { sendVerificationEmail } from '@/utils/email';
+import { sendVerificationEmail, generateOTP } from '@/utils/email';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(`resend-otp:${clientIp}`, 5, 60 * 1000);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { message: 'Too many requests. Please wait a minute and try again.' },
+        { status: 429 }
+      );
+    }
+
     const { email } = await request.json();
 
     if (!email) {
@@ -28,8 +38,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate new secure OTP
+    const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Update or create OTP record
@@ -38,17 +48,27 @@ export async function POST(request: Request) {
       {
         $set: {
           otp,
-          expiresAt
+          expiresAt,
+          failedAttempts: 0
         }
       },
       { upsert: true }
     );
 
     // Send verification email
-    await sendVerificationEmail(email, otp);
+    try {
+      await sendVerificationEmail(email, otp);
+    } catch (emailErr) {
+      console.warn('Verification email dispatch warning:', emailErr);
+    }
+
+    const isDev = process.env.NODE_ENV === 'development';
 
     return NextResponse.json(
-      { message: 'Verification email sent' },
+      { 
+        message: 'Verification email sent',
+        ...(isDev ? { devOtp: otp } : {})
+      },
       { status: 200 }
     );
   } catch (error) {

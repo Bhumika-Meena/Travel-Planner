@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
+import { validatePassword } from '@/utils/validation';
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +10,22 @@ export async function POST(request: Request) {
     if (!token || !password) {
       return NextResponse.json(
         { message: 'Token and password are required' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof token !== 'string' || typeof password !== 'string') {
+      return NextResponse.json(
+        { message: 'Invalid input format' },
+        { status: 400 }
+      );
+    }
+
+    // Enforce password length, type, and complexity on the server
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return NextResponse.json(
+        { message: passwordValidation.error || 'Password does not meet security requirements' },
         { status: 400 }
       );
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import { getAuthSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,8 @@ export async function GET(request: Request) {
   try {
     await connectDB();
 
-    const userId = request.headers.get('user-id');
+    const session = await getAuthSession(request);
+    const userId = session?.userId;
     if (!userId) {
       return NextResponse.json(
         { message: 'User not authenticated' },
@@ -26,11 +28,11 @@ export async function GET(request: Request) {
     }
 
     // Get user's rank
-    const userRank = await User.countDocuments({ points: { $gt: user.points } }) + 1;
+    const userRank = await User.countDocuments({ points: { $gt: user.points || 0 } }) + 1;
 
     const stats = {
-      totalPoints: user.points,
-      totalTrips: user.trips.length,
+      totalPoints: user.points || 0,
+      totalTrips: Array.isArray(user.trips) ? user.trips.length : 0,
       rank: userRank,
     };
 

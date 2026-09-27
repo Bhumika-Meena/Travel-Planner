@@ -1,13 +1,4 @@
-export function calculateLevel(points: number): number {
-  // Level calculation formula: level = floor(sqrt(points / 100)) + 1
-  // This means:
-  // - 0-99 points = Level 1
-  // - 100-399 points = Level 2
-  // - 400-899 points = Level 3
-  // - 900-1599 points = Level 4
-  // And so on...
-  return Math.floor(Math.sqrt(points / 100)) + 1;
-}
+export { calculateLevel, getLevelProgress } from '@/lib/gamification';
 
 export function formatDate(date: string | Date): string {
   return new Date(date).toLocaleDateString('en-US', {

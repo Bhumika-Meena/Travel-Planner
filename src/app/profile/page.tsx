@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Cookies from 'js-cookie';
 import Image from 'next/image';
 import { sanitizeInput, validateEmail, validateName, validateBio } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { Avatar } from '@/components/Avatar';
 
 interface User {
   _id: string;
@@ -17,6 +18,7 @@ interface User {
   badges: string[];
   totalTrips: number;
   bio?: string;
+  isTripPublic?: boolean;
   currentTrip?: {
     destination: string;
     startDate: string;
@@ -39,6 +41,7 @@ const formatDate = (dateString: string): string => {
 
 export default function Profile() {
   const router = useRouter();
+  const { user: authUser, loading: authLoading, refreshUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,7 +49,8 @@ export default function Profile() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    bio: ''
+    bio: '',
+    isTripPublic: false
   });
   const [errors, setErrors] = useState({
     fullName: '',
@@ -54,49 +58,41 @@ export default function Profile() {
     bio: ''
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
-    const userCookie = Cookies.get('user');
-    if (!userCookie) {
+    return () => {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!authUser) {
       router.push('/login');
       return;
     }
 
-    try {
-      const userData = JSON.parse(userCookie);
-      if (!userData._id) {
-        Cookies.remove('user');
-        router.push('/login');
-        return;
-      }
-      setUser(userData);
-      setFormData({
-        fullName: userData.fullName,
-        email: userData.email,
-        bio: userData.bio || ''
-      });
-      fetchUserData();
-    } catch (error) {
-      Cookies.remove('user');
-      router.push('/login');
-      return;
-    }
-  }, [router]);
+    setFormData({
+      fullName: authUser.fullName,
+      email: authUser.email,
+      bio: authUser.bio || '',
+      isTripPublic: false
+    });
+    fetchUserData(authUser._id);
+  }, [authUser, authLoading, router]);
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (id?: string) => {
     try {
-      const userCookie = Cookies.get('user');
-      if (!userCookie) {
-        throw new Error('User not authenticated');
-      }
+      const targetId = id || user?._id || authUser?._id;
+      if (!targetId) return;
 
-      const user = JSON.parse(userCookie);
-      const response = await fetch(`/api/users/${user._id}`, {
-        headers: {
-          'user-id': user._id
-        }
-      });
+      const response = await fetch(`/api/users/${targetId}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch user data');
@@ -109,7 +105,8 @@ export default function Profile() {
       setFormData({
         fullName: userData.fullName,
         email: userData.email,
-        bio: userData.bio || ''
+        bio: userData.bio || '',
+        isTripPublic: userData.isTripPublic === true
       });
     } catch (err: any) {
       console.error('Error fetching user data:', err);
@@ -188,18 +185,50 @@ export default function Profile() {
       const updatedUser = await response.json();
       setUser(updatedUser);
       setEditing(false);
-      
-      // Update cookie with new user data
-      Cookies.set('user', JSON.stringify(updatedUser));
+      await refreshUser();
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setError(err.message);
     }
   };
 
-  const handleProfilePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0] || !user) return;
-    setSelectedFile(e.target.files[0]);
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError('');
+    setUploadSuccess('');
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate size client-side (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image size exceeds 5MB limit. Please select a smaller file.');
+      e.target.value = '';
+      return;
+    }
+
+    // Validate MIME type client-side
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validMimes.includes(file.type)) {
+      setUploadError('Invalid format. Only JPG, PNG, and WebP images are allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    setSelectedFile(file);
+  };
+
+  const handleCancelPreview = () => {
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setSelectedFile(null);
+    setUploadError('');
   };
 
   const handleProfilePictureUpload = async () => {
@@ -207,6 +236,9 @@ export default function Profile() {
 
     try {
       setUploading(true);
+      setUploadError('');
+      setUploadSuccess('');
+
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('userId', user._id);
@@ -216,16 +248,24 @@ export default function Profile() {
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to upload profile picture');
+        throw new Error(data.message || 'Failed to upload profile picture');
       }
 
-      const data = await response.json();
-      setUser(prev => prev ? { ...prev, profilePicture: data.profilePicture } : null);
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(null);
       setSelectedFile(null);
-    } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      setError('Failed to upload profile picture');
+      setUser(prev => (prev ? { ...prev, profilePicture: data.profilePicture } : null));
+      setUploadSuccess('Profile picture updated successfully!');
+      await refreshUser();
+      setTimeout(() => setUploadSuccess(''), 5000);
+    } catch (err: any) {
+      console.error('Error uploading profile picture:', err);
+      setUploadError(err.message || 'Failed to upload profile picture');
     } finally {
       setUploading(false);
     }
@@ -252,21 +292,16 @@ export default function Profile() {
         <div className="bg-white shadow rounded-lg p-6">
           {/* Profile header */}
           <div className="flex items-center space-x-6">
-            <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
-              {user.profilePicture ? (
-                <Image
-                  src={user.profilePicture}
-                  alt="Profile"
-                  width={96}
-                  height={96}
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500">
-                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
+            <div className="relative shrink-0">
+              <Avatar
+                src={previewUrl || user.profilePicture}
+                name={user.fullName}
+                size="xl"
+              />
+              {previewUrl && (
+                <span className="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                  Preview
+                </span>
               )}
             </div>
             <div>
@@ -377,26 +412,91 @@ export default function Profile() {
                 )}
               </div>
 
+              {/* Trip Privacy Setting */}
+              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3.5">
+                <div className="flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="isTripPublic"
+                      name="isTripPublic"
+                      type="checkbox"
+                      checked={formData.isTripPublic}
+                      onChange={(e) => setFormData(prev => ({ ...prev, isTripPublic: e.target.checked }))}
+                      disabled={!editing}
+                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded disabled:opacity-60 cursor-pointer"
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="isTripPublic" className="font-medium text-gray-700 cursor-pointer">
+                      Share Current Trip on Public Profile
+                    </label>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      When unchecked (default), your active destination and travel dates remain strictly private and invisible to other travelers.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Profile Picture
                 </label>
-                <div className="mt-1 flex items-center space-x-4">
+                <p className="text-xs text-gray-500 mt-0.5">JPG, PNG, or WebP up to 5MB</p>
+
+                {uploadError && (
+                  <div className="mt-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+
+                {uploadSuccess && (
+                  <div className="mt-2 p-2.5 bg-green-50 border border-green-200 text-green-700 text-sm rounded-md flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{uploadSuccess}</span>
+                  </div>
+                )}
+
+                <div className="mt-2 flex flex-wrap items-center gap-3">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleProfilePictureChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                   />
                   {selectedFile && (
-                    <button
-                      type="button"
-                      onClick={handleProfilePictureUpload}
-                      disabled={uploading}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      {uploading ? 'Uploading...' : 'Upload'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleProfilePictureUpload}
+                        disabled={uploading}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition"
+                      >
+                        {uploading ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Uploading...
+                          </>
+                        ) : (
+                          'Upload Picture'
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelPreview}
+                        disabled={uploading}
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

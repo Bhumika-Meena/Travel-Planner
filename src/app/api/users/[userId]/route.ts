@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { getAuthSession } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -17,25 +18,31 @@ export async function GET(
       );
     }
 
+    const session = await getAuthSession(request);
+    const isOwner = session?.userId === userId;
+
+    const projection: Record<string, number> = {
+      _id: 1,
+      fullName: 1,
+      profilePicture: 1,
+      points: 1,
+      level: 1,
+      badges: 1,
+      totalTrips: 1,
+      bio: 1,
+      isTripPublic: 1
+    };
+
+    if (isOwner) {
+      projection.email = 1;
+    }
+
     const { db } = await connectToDatabase();
     
     // Find the user
     const user = await db.collection('users').findOne(
       { _id: new ObjectId(userId) },
-      {
-        projection: {
-          _id: 1,
-          fullName: 1,
-          email: 1,
-          profilePicture: 1,
-          points: 1,
-          level: 1,
-          badges: 1,
-          totalTrips: 1,
-          bio: 1,
-          currentTrip: 1
-        }
-      }
+      { projection }
     );
 
     if (!user) {
@@ -45,21 +52,28 @@ export async function GET(
       );
     }
 
-    // Get current trip
-    const currentTrip = await db.collection('trips').findOne(
-      { userId: new ObjectId(userId), status: 'current' },
-      {
-        projection: {
-          _id: 1,
-          destination: 1,
-          startDate: 1,
-          endDate: 1
+    // Profile Privacy: trips are private by default. Only expose current trip destination/dates
+    // if requester is the profile owner OR user has explicitly opted-in with isTripPublic: true.
+    const isTripPublic = user.isTripPublic === true;
+    let currentTrip = null;
+
+    if (isOwner || isTripPublic) {
+      currentTrip = await db.collection('trips').findOne(
+        { userId: new ObjectId(userId), status: 'current' },
+        {
+          projection: {
+            _id: 1,
+            destination: 1,
+            startDate: 1,
+            endDate: 1
+          }
         }
-      }
-    );
+      );
+    }
 
     return NextResponse.json({
       ...user,
+      isTripPublic,
       currentTrip: currentTrip || null
     });
   } catch (error) {
@@ -76,14 +90,15 @@ export async function PUT(
   { params }: { params: { userId: string } }
 ) {
   try {
-    const userId = request.headers.get('user-id');
+    const session = await getAuthSession(request);
+    const userId = session?.userId;
     if (!userId) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
     // Verify that the requested userId matches the authenticated user
     if (userId !== params.userId) {
-      return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 });
+      return NextResponse.json({ error: 'Unauthorized: You can only edit your own profile' }, { status: 403 });
     }
 
     const { db } = await connectToDatabase();
@@ -95,7 +110,7 @@ export async function PUT(
 
     // Get request body
     const body = await request.json();
-    const { fullName, email, bio } = body;
+    const { fullName, email, bio, isTripPublic } = body;
 
     // Validate required fields
     if (!fullName || !email) {
@@ -105,10 +120,15 @@ export async function PUT(
       );
     }
 
+    const updateFields: Record<string, any> = { fullName, email, bio };
+    if (typeof isTripPublic === 'boolean') {
+      updateFields.isTripPublic = isTripPublic;
+    }
+
     // Update user data
     const result = await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { fullName, email, bio } }
+      { $set: updateFields }
     );
 
     if (result.matchedCount === 0) {
@@ -118,7 +138,7 @@ export async function PUT(
     // Get updated user data
     const updatedUser = await db.collection('users').findOne(
       { _id: new ObjectId(userId) },
-      { projection: { _id: 1, fullName: 1, email: 1, points: 1, profilePicture: 1, level: 1, badges: 1, bio: 1 } }
+      { projection: { _id: 1, fullName: 1, email: 1, points: 1, profilePicture: 1, level: 1, badges: 1, bio: 1, isTripPublic: 1 } }
     );
 
     if (!updatedUser) {
@@ -153,6 +173,7 @@ export async function PUT(
       level: updatedUser.level || 1,
       badges: updatedUser.badges || [],
       bio: updatedUser.bio || '',
+      isTripPublic: updatedUser.isTripPublic === true,
       totalTrips,
       currentTrip: currentTrip || null
     };

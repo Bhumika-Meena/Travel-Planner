@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { parseCookies } from 'nookies';
+import { useAuth } from '@/context/AuthContext';
 
 interface Trip {
   _id: string;
@@ -23,6 +23,7 @@ interface Trip {
 }
 
 export default function MyTrips() {
+  const { user, loading: authLoading } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,33 +31,17 @@ export default function MyTrips() {
   const router = useRouter();
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
     fetchTrips();
-  }, []);
+  }, [user, authLoading, router]);
 
   const fetchTrips = async () => {
     try {
-      // Get user ID from cookies
-      const cookies = parseCookies();
-      const userCookie = cookies['user'];
-      
-      if (!userCookie) {
-        router.push('/login');
-        return;
-      }
-
-      const user = JSON.parse(userCookie);
-      
-      if (!user || !user._id) {
-        router.push('/login');
-        return;
-      }
-
-      // Fetch trips with user ID in headers
-      const tripsResponse = await fetch('/api/trips', {
-        headers: {
-          'user-id': user._id
-        }
-      });
+      const tripsResponse = await fetch('/api/trips');
 
       if (!tripsResponse.ok) {
         throw new Error('Failed to fetch trips');

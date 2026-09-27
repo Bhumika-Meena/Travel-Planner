@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { NextRequest } from 'next/server';
+import { getAuthSession } from '@/lib/auth';
+import { calculateTaskReward } from '@/lib/gamification';
 
 export async function POST(request: Request) {
   try {
-    const userId = request.headers.get('user-id');
+    const session = await getAuthSession(request);
+    const userId = session?.userId;
     if (!userId) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
@@ -13,9 +16,16 @@ export async function POST(request: Request) {
     const { destination, startDate, endDate, places } = await request.json();
 
     // Validate required fields
-    if (!destination || !startDate || !endDate || !places || places.length === 0) {
+    if (!destination || !startDate || !endDate || !places || !Array.isArray(places) || places.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing or invalid required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof destination !== 'string' || destination.trim().length === 0 || destination.length > 100) {
+      return NextResponse.json(
+        { error: 'Destination must be a valid text up to 100 characters' },
         { status: 400 }
       );
     }
@@ -23,27 +33,48 @@ export async function POST(request: Request) {
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
-    if (start >= end) {
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
       return NextResponse.json(
-        { error: 'End date must be after start date' },
+        { error: 'Invalid dates. End date must be after start date' },
         { status: 400 }
       );
     }
 
+    if (places.length > 50) {
+      return NextResponse.json(
+        { error: 'A trip can have at most 50 places' },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize places and assign server-authoritative points (never trust client points)
+    const sanitizedPlaces = places.map((place: any, index: number) => {
+      const name = typeof place.name === 'string' ? place.name.trim().slice(0, 150) : `Place ${index + 1}`;
+      const description = typeof place.description === 'string' ? place.description.trim().slice(0, 500) : '';
+      const points = calculateTaskReward(place);
+      return {
+        ...place,
+        name: name || `Place ${index + 1}`,
+        description,
+        points,
+        isSelected: place.isSelected !== undefined ? Boolean(place.isSelected) : true
+      };
+    });
+
     const { db } = await connectToDatabase();
 
-    // Calculate total points from places
-    const totalPoints = places.reduce((sum: number, place: any) => sum + place.points, 0);
+    // Calculate total points from sanitized places
+    const totalPoints = sanitizedPlaces.reduce((sum: number, place: any) => sum + place.points, 0);
 
     // Create the trip
     const result = await db.collection('trips').insertOne({
       userId: new ObjectId(userId),
-      destination,
+      destination: destination.trim(),
       startDate,
       endDate,
       totalPoints,
       createdAt: new Date().toISOString(),
-      places,
+      places: sanitizedPlaces,
       status: 'current' // Set initial status as current
     });
 
@@ -55,6 +86,15 @@ export async function POST(request: Request) {
         _id: { $ne: result.insertedId }
       },
       { $set: { status: 'past' } }
+    );
+
+    // Update user's trips array and totalTrips count
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $push: { trips: result.insertedId } as any,
+        $inc: { totalTrips: 1 }
+      }
     );
 
     return NextResponse.json({
@@ -72,7 +112,8 @@ export async function POST(request: Request) {
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('user-id');
+    const session = await getAuthSession(request);
+    const userId = session?.userId;
     if (!userId) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
