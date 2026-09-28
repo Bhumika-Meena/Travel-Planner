@@ -8,18 +8,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     const session = await getAuthSession(request);
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
-
-    if (!ObjectId.isValid(session.userId)) {
-      return NextResponse.json(
-        { error: 'Invalid user session' },
-        { status: 401 }
-      );
+    if (!session || !ObjectId.isValid(session.userId)) {
+      return NextResponse.json({ user: null }, { status: 200 });
     }
 
     const { db } = await connectToDatabase();
@@ -35,10 +25,7 @@ export async function GET(request: Request) {
     );
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ user: null }, { status: 200 });
     }
 
     return NextResponse.json({
@@ -53,6 +40,7 @@ export async function GET(request: Request) {
         bio: user.bio || '',
         totalTrips: user.totalTrips || 0,
         isVerified: user.isVerified || false,
+        isTripPublic: user.isTripPublic ?? false,
       },
     });
   } catch (error: any) {

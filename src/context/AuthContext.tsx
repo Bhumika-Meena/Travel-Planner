@@ -14,6 +14,7 @@ export interface AuthUser {
   bio?: string;
   totalTrips: number;
   isVerified?: boolean;
+  isTripPublic?: boolean;
 }
 
 interface AuthContextType {
@@ -42,8 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
-        return data.user;
+        const currentUser = data.user || null;
+        setUser(currentUser);
+        return currentUser;
       } else {
         setUser(null);
         return null;

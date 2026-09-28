@@ -1,0 +1,26 @@
+services:
+  # Next.js Fullstack Web Application
+  - type: web
+    name: travel-planner-web
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NODE_ENV
+        value: production
+
+  # Real-Time Socket.IO Chat Server
+  - type: web
+    name: travel-planner-chat
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node chat-server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NODE_ENV
+        value: production
