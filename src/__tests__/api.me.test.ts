@@ -58,7 +58,8 @@ describe('GET /api/auth/me', () => {
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ user: null });
+    expect(body.user).toBeNull();
+    expect(body.success).toBe(true);
   });
 
   it('returns { user: null } when token is malformed', async () => {
@@ -66,7 +67,8 @@ describe('GET /api/auth/me', () => {
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ user: null });
+    expect(body.user).toBeNull();
+    expect(body.success).toBe(true);
   });
 
   it('returns { user: null } when user id in token is not found in database', async () => {
@@ -76,7 +78,8 @@ describe('GET /api/auth/me', () => {
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ user: null });
+    expect(body.user).toBeNull();
+    expect(body.success).toBe(true);
   });
 
   it('returns authenticated user details when valid token provided', async () => {

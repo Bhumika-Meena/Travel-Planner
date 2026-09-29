@@ -183,7 +183,7 @@ export function useDashboard() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to complete task');
+        throw new Error(errorData.error?.message || errorData.message || (typeof errorData.error === 'string' ? errorData.error : 'Failed to complete task'));
       }
 
       const data = await response.json();
@@ -222,7 +222,7 @@ export function useDashboard() {
       const res = await fetch(`/api/trips/${currentTrip._id}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.details || data.error || 'Failed to delete trip');
+        throw new Error(data.error?.message || data.message || data.details || (typeof data.error === 'string' ? data.error : 'Failed to delete trip'));
       }
 
       setShowDeleteConfirm(false);

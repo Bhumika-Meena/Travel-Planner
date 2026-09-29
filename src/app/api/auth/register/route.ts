@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail, generateOTP } from '@/utils/email';
@@ -6,15 +5,17 @@ import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { validatePassword } from '@/utils/validation';
 import { RegisterSchema, validationError } from '@/lib/schemas';
 import logger from '@/lib/logger';
+import { apiSuccess, apiError } from '@/lib/api-response';
 
 export async function POST(request: Request) {
   try {
     const clientIp = getClientIp(request);
     const rateLimit = checkRateLimit(`register:${clientIp}`, 5, 60 * 1000);
     if (!rateLimit.success) {
-      return NextResponse.json(
-        { message: 'Too many registration requests. Please wait a minute and try again.' },
-        { status: 429 }
+      return apiError(
+        'Too many registration requests. Please wait a minute and try again.',
+        'RATE_LIMIT_EXCEEDED',
+        429
       );
     }
     const body = await request.json();
@@ -28,9 +29,10 @@ export async function POST(request: Request) {
     // Password complexity check (strength rules beyond basic length)
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
-      return NextResponse.json(
-        { message: passwordValidation.error || 'Password does not meet security requirements' },
-        { status: 400 }
+      return apiError(
+        passwordValidation.error || 'Password does not meet security requirements',
+        'WEAK_PASSWORD',
+        400
       );
     }
 
@@ -41,10 +43,7 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       if (existingUser.isVerified) {
-        return NextResponse.json(
-          { message: 'Email already registered' },
-          { status: 400 }
-        );
+        return apiError('Email already registered', 'EMAIL_ALREADY_EXISTS', 400);
       } else {
         // If user exists but not verified, update their information
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -81,12 +80,12 @@ export async function POST(request: Request) {
 
         const isDev = process.env.NODE_ENV === 'development';
 
-        return NextResponse.json(
+        return apiSuccess(
           { 
             message: 'Verification email sent',
             ...(isDev ? { devOtp: otp } : {})
           },
-          { status: 200 }
+          200
         );
       }
     }
@@ -120,23 +119,20 @@ export async function POST(request: Request) {
     try {
       await sendVerificationEmail(email, otp);
     } catch (emailErr) {
-      console.warn('Verification email dispatch warning:', emailErr);
+      logger.warn({ err: emailErr }, 'Verification email dispatch warning');
     }
 
     const isDev = process.env.NODE_ENV === 'development';
 
-    return NextResponse.json(
+    return apiSuccess(
       {
         message: 'Verification email sent',
         ...(isDev ? { devOtp: otp } : {}),
       },
-      { status: 201 }
+      201
     );
   } catch (error) {
     logger.error({ err: error }, 'Registration error');
-    return NextResponse.json(
-      { message: 'Failed to register' },
-      { status: 500 }
-    );
+    return apiError('Failed to register', 'INTERNAL_SERVER_ERROR', 500);
   }
-} 
+}

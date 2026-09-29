@@ -1,47 +1,36 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
 import { getAuthSession } from '@/lib/auth';
+import { connectToDatabase } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    await connectDB();
-
     const session = await getAuthSession(request);
     const userId = session?.userId;
-    if (!userId) {
-      return NextResponse.json(
-        { message: 'User not authenticated' },
-        { status: 401 }
-      );
+    if (!userId || !ObjectId.isValid(userId)) {
+      return apiError('User not authenticated', 'UNAUTHORIZED', 401);
     }
 
-    // Get user's stats
-    const user = await User.findById(userId);
+    const { db } = await connectToDatabase();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return apiError('User not found', 'NOT_FOUND', 404);
     }
 
-    // Get user's rank
-    const userRank = await User.countDocuments({ points: { $gt: user.points || 0 } }) + 1;
+    const userRank = await db.collection('users').countDocuments({ points: { $gt: user.points || 0 } }) + 1;
 
     const stats = {
       totalPoints: user.points || 0,
-      totalTrips: Array.isArray(user.trips) ? user.trips.length : 0,
+      totalTrips: Array.isArray(user.trips) ? user.trips.length : (user.totalTrips || 0),
       rank: userRank,
     };
 
-    return NextResponse.json({ stats });
+    return apiSuccess({ stats });
   } catch (error: any) {
-    console.error('User stats error:', error);
-    return NextResponse.json(
-      { message: 'Error fetching user stats' },
-      { status: 500 }
-    );
+    logger.error({ err: error }, 'User stats error');
+    return apiError('Error fetching user stats', 'INTERNAL_SERVER_ERROR', 500);
   }
-} 
+}

@@ -7,12 +7,14 @@ import { calculateTaskReward } from '@/lib/gamification';
 import { TripCreateSchema, validationError } from '@/lib/schemas';
 import logger from '@/lib/logger';
 
+import { apiSuccess, apiError } from '@/lib/api-response';
+
 export async function POST(request: Request) {
   try {
     const session = await getAuthSession(request);
     const userId = session?.userId;
     if (!userId) {
-      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+      return apiError('User not authenticated', 'UNAUTHORIZED', 401);
     }
 
     const body = await request.json();
@@ -24,10 +26,7 @@ export async function POST(request: Request) {
     const { destination, startDate, endDate, places } = parsed.data;
 
     if (places.length > 50) {
-      return NextResponse.json(
-        { error: 'A trip can have at most 50 places' },
-        { status: 400 }
-      );
+      return apiError('A trip can have at most 50 places', 'LIMIT_EXCEEDED', 400);
     }
 
     // Sanitize places and assign server-authoritative points (never trust client points)
@@ -80,16 +79,13 @@ export async function POST(request: Request) {
       }
     );
 
-    return NextResponse.json({
+    return apiSuccess({
       message: 'Trip created successfully',
-      tripId: result.insertedId
-    });
+      tripId: result.insertedId.toString()
+    }, 200);
   } catch (error) {
     logger.error({ err: error }, 'Error creating trip');
-    return NextResponse.json(
-      { error: 'Failed to create trip' },
-      { status: 500 }
-    );
+    return apiError('Failed to create trip', 'INTERNAL_SERVER_ERROR', 500);
   }
 }
 
@@ -98,14 +94,14 @@ export async function GET(request: NextRequest) {
     const session = await getAuthSession(request);
     const userId = session?.userId;
     if (!userId) {
-      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+      return apiError('User not authenticated', 'UNAUTHORIZED', 401);
     }
 
     const { db } = await connectToDatabase();
 
     // Validate ObjectId
     if (!ObjectId.isValid(userId)) {
-      return NextResponse.json({ error: 'Invalid user ID format' }, { status: 400 });
+      return apiError('Invalid user ID format', 'INVALID_ID', 400);
     }
     
     // Get current trip
@@ -126,15 +122,12 @@ export async function GET(request: NextRequest) {
     const requestId = request.headers.get('x-request-id') || 'initial';
     logger.debug({ userId, requestId, hasCurrent: !!currentTrip, pastTripsCount: pastTrips.length }, 'Fetching trips');
 
-    return NextResponse.json({
+    return apiSuccess({
       currentTrip,
       pastTrips
     });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching trips');
-    return NextResponse.json(
-      { error: 'Failed to fetch trips' },
-      { status: 500 }
-    );
+    return apiError('Failed to fetch trips', 'INTERNAL_SERVER_ERROR', 500);
   }
 }

@@ -113,7 +113,8 @@ describe('POST /api/trips/[tripId]/complete-task', () => {
     const res = await POST(await makeRequest({ placeIndex: 1 }) as any, { params: { tripId: TRIP_ID } });
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/already completed/i);
+    const err = typeof body.error === 'string' ? body.error : body.error?.message;
+    expect(err).toMatch(/already completed/i);
   });
 
   it('uses server-authoritative points (15 for long description)', async () => {
@@ -142,7 +143,8 @@ describe('POST /api/trips/[tripId]/complete-task', () => {
     const res2 = await POST(await makeRequest({ placeIndex: 0 }) as any, { params: { tripId: TRIP_ID } });
     expect(res2.status).toBe(400);
     const body2 = await res2.json();
-    expect(body2.error).toMatch(/already completed/i);
+    const err2 = typeof body2.error === 'string' ? body2.error : body2.error?.message;
+    expect(err2).toMatch(/already completed/i);
     expect(mockUserFindOneAndUpdate).toHaveBeenCalledTimes(1);
   });
 

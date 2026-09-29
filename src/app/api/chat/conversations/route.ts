@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = await getAuthSession(request);
     if (!session || !session.userId) {
-      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+      return apiError('User not authenticated', 'UNAUTHORIZED', 401);
     }
 
     const userId = session.userId;
@@ -90,12 +91,9 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ conversations }, { status: 200 });
+    return apiSuccess({ conversations }, 200);
   } catch (error) {
-    console.error('Error in /api/chat/conversations:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch conversations' },
-      { status: 500 }
-    );
+    logger.error({ err: error }, 'Error in /api/chat/conversations');
+    return apiError('Failed to fetch conversations', 'INTERNAL_SERVER_ERROR', 500);
   }
 }

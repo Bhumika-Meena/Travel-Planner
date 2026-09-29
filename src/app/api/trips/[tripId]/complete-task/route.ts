@@ -6,6 +6,7 @@ import { getAuthSession } from '@/lib/auth';
 import { calculateTaskReward } from '@/lib/gamification';
 import { CompleteTaskSchema, validationError } from '@/lib/schemas';
 import logger from '@/lib/logger';
+import { apiSuccess, apiError } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export async function POST(
     const session = await getAuthSession(request);
     const userId = session?.userId;
     if (!userId) {
-      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+      return apiError('User not authenticated', 'UNAUTHORIZED', 401);
     }
 
     const body = await request.json();
@@ -28,7 +29,7 @@ export async function POST(
 
     // Validate ObjectId format
     if (!ObjectId.isValid(params.tripId) || !ObjectId.isValid(userId)) {
-      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+      return apiError('Invalid ID format', 'INVALID_ID', 400);
     }
 
     const tripObjectId = new ObjectId(params.tripId);
@@ -43,16 +44,16 @@ export async function POST(
     });
 
     if (!trip) {
-      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+      return apiError('Trip not found', 'NOT_FOUND', 404);
     }
 
     // Check if the place exists and is not already completed
     if (!trip.places || !Array.isArray(trip.places) || !trip.places[placeIndex]) {
-      return NextResponse.json({ error: 'Invalid place index' }, { status: 400 });
+      return apiError('Invalid place index', 'INVALID_PLACE_INDEX', 400);
     }
 
     if (!trip.places[placeIndex].isSelected) {
-      return NextResponse.json({ error: 'Place already completed' }, { status: 400 });
+      return apiError('Place already completed', 'ALREADY_COMPLETED', 400);
     }
 
     // Authoritative Server-Side Reward Calculation:
@@ -102,7 +103,7 @@ export async function POST(
       }
     } catch (txErr: any) {
       if (txErr.message === 'ALREADY_COMPLETED') {
-        return NextResponse.json({ error: 'Place already completed' }, { status: 400 });
+        return apiError('Place already completed', 'ALREADY_COMPLETED', 400);
       }
       // If transactions are not supported on this MongoDB instance (e.g. standalone Mongo), fall back to compensated atomic execution
     }
@@ -125,7 +126,7 @@ export async function POST(
       );
 
       if (tripRes.modifiedCount === 0) {
-        return NextResponse.json({ error: 'Place already completed' }, { status: 400 });
+        return apiError('Place already completed', 'ALREADY_COMPLETED', 400);
       }
 
       // Step B: Atomically increment user points with rollback compensation
@@ -157,16 +158,16 @@ export async function POST(
     // Check and update level/badges with the new authoritative total points
     const progressUpdate = await updateUserProgress(userId, newPoints);
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       points: newPoints,
       progressUpdate
-    }, { status: 200 });
+    }, 200);
   } catch (error: any) {
     logger.error({ err: error }, 'Error completing task');
-    return NextResponse.json(
-      { error: error?.message || 'Failed to complete task' },
-      { status: 500 }
+    return apiError(
+      error?.message || 'Failed to complete task',
+      'INTERNAL_SERVER_ERROR',
+      500
     );
   }
 } 

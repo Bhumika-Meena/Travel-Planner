@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 import { signAuthToken, getAuthCookieOptions } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { LoginSchema, validationError } from '@/lib/schemas';
 import logger from '@/lib/logger';
+import { apiSuccess, apiError } from '@/lib/api-response';
 
 export async function POST(request: Request) {
   try {
@@ -12,21 +12,24 @@ export async function POST(request: Request) {
     // Rate limit login attempts: 8 attempts per minute per IP
     const rateLimit = checkRateLimit(`login:${clientIp}`, 8, 60 * 1000);
     if (!rateLimit.success) {
-      return NextResponse.json(
-        { message: `Too many login attempts. Please try again in ${rateLimit.reset - Math.floor(Date.now() / 1000)} seconds.` },
-        { 
-          status: 429,
+      return apiError(
+        `Too many login attempts. Please try again in ${rateLimit.reset - Math.floor(Date.now() / 1000)} seconds.`,
+        'RATE_LIMIT_EXCEEDED',
+        429,
+        undefined,
+        {
           headers: {
             'Retry-After': String(rateLimit.reset - Math.floor(Date.now() / 1000)),
-          }
+          },
         }
       );
     }
 
     const body = await request.json();
-
     const parsed = LoginSchema.safeParse(body);
-    if (!parsed.success) return validationError(parsed.error);
+    if (!parsed.success) {
+      return validationError(parsed.error);
+    }
 
     const { email, password } = parsed.data;
 
@@ -34,27 +37,18 @@ export async function POST(request: Request) {
     const user = await db.collection('users').findOne({ email: email.toLowerCase() });
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'Invalid email or password' },
-        { status: 401 }
-      );
+      return apiError('Invalid email or password', 'INVALID_CREDENTIALS', 401);
     }
 
     // Check if email is verified
     if (!user.isVerified) {
-      return NextResponse.json(
-        { message: 'Email not verified' },
-        { status: 401 }
-      );
+      return apiError('Email not verified', 'EMAIL_NOT_VERIFIED', 401);
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
-      return NextResponse.json(
-        { message: 'Invalid email or password' },
-        { status: 401 }
-      );
+      return apiError('Invalid email or password', 'INVALID_CREDENTIALS', 401);
     }
 
     // Generate secure JWT token
@@ -68,7 +62,7 @@ export async function POST(request: Request) {
     const { password: _, resetToken: __, resetTokenExpiry: ___, ...userWithoutPassword } = user;
 
     // Create response with secure HTTP-only cookie
-    const response = NextResponse.json(
+    const response = apiSuccess(
       { 
         user: {
           ...userWithoutPassword,
@@ -76,7 +70,7 @@ export async function POST(request: Request) {
         },
         message: 'Logged in successfully'
       },
-      { status: 200 }
+      200
     );
 
     const cookieOptions = getAuthCookieOptions();
@@ -93,9 +87,6 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     logger.error({ err: error }, 'Login error');
-    return NextResponse.json(
-      { message: 'Failed to login' },
-      { status: 500 }
-    );
+    return apiError('Failed to login', 'INTERNAL_SERVER_ERROR', 500);
   }
 }

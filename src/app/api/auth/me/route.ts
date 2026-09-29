@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import logger from '@/lib/logger';
+import { apiSuccess, apiError } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = await getAuthSession(request);
     if (!session || !ObjectId.isValid(session.userId)) {
-      return NextResponse.json({ user: null }, { status: 200 });
+      return apiSuccess({ user: null }, 200);
     }
 
     const { db } = await connectToDatabase();
@@ -26,10 +26,10 @@ export async function GET(request: Request) {
     );
 
     if (!user) {
-      return NextResponse.json({ user: null }, { status: 200 });
+      return apiSuccess({ user: null }, 200);
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       user: {
         _id: user._id.toString(),
         fullName: user.fullName || user.name || '',
@@ -45,10 +45,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error('Error in /api/auth/me:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', message: error?.message },
-      { status: 500 }
-    );
+    logger.error({ err: error }, 'Error in /api/auth/me');
+    return apiError('Internal server error', 'INTERNAL_SERVER_ERROR', 500);
   }
 }
