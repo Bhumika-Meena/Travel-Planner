@@ -7,7 +7,9 @@
     "chat-server": "node chat-server.js",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --forceExit",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --passWithNoTests --forceExit"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
@@ -39,11 +41,15 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.16",
     "@types/react": "^18.2.52",
     "@types/react-dom": "^18.2.18",
     "eslint": "^8.56.0",
     "eslint-config-next": "^14.2.35",
+    "jest": "^30.5.2",
+    "jest-environment-node": "^30.5.2",
+    "ts-jest": "^29.4.14",
     "typescript": "^5.3.3"
   },
   "overrides": {

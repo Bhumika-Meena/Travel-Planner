@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { sendEmail } from '@/utils/email';
 import crypto from 'crypto';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import logger from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Forgot password error:', error);
+    logger.error({ err: error }, 'Forgot password error');
     return NextResponse.json(
       { message: 'Failed to process password reset request' },
       { status: 500 }

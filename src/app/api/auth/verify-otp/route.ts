@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import logger from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('OTP verification error:', error);
+    logger.error({ err: error }, 'OTP verification error');
     return NextResponse.json(
       { message: 'Failed to verify OTP' },
       { status: 500 }

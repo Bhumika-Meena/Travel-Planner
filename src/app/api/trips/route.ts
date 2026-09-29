@@ -4,6 +4,8 @@ import { ObjectId } from 'mongodb';
 import { NextRequest } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { calculateTaskReward } from '@/lib/gamification';
+import { TripCreateSchema, validationError } from '@/lib/schemas';
+import logger from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -13,32 +15,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
-    const { destination, startDate, endDate, places } = await request.json();
+    const body = await request.json();
 
-    // Validate required fields
-    if (!destination || !startDate || !endDate || !places || !Array.isArray(places) || places.length === 0) {
-      return NextResponse.json(
-        { error: 'Missing or invalid required fields' },
-        { status: 400 }
-      );
-    }
+    // Zod validation: structure, required fields, and date ordering
+    const parsed = TripCreateSchema.safeParse(body);
+    if (!parsed.success) return validationError(parsed.error);
 
-    if (typeof destination !== 'string' || destination.trim().length === 0 || destination.length > 100) {
-      return NextResponse.json(
-        { error: 'Destination must be a valid text up to 100 characters' },
-        { status: 400 }
-      );
-    }
-
-    // Validate dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
-      return NextResponse.json(
-        { error: 'Invalid dates. End date must be after start date' },
-        { status: 400 }
-      );
-    }
+    const { destination, startDate, endDate, places } = parsed.data;
 
     if (places.length > 50) {
       return NextResponse.json(
@@ -102,7 +85,7 @@ export async function POST(request: Request) {
       tripId: result.insertedId
     });
   } catch (error) {
-    console.error('Error creating trip:', error);
+    logger.error({ err: error }, 'Error creating trip');
     return NextResponse.json(
       { error: 'Failed to create trip' },
       { status: 500 }
@@ -140,24 +123,15 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Log only when there are changes or on initial load
     const requestId = request.headers.get('x-request-id') || 'initial';
-    console.log(`[${new Date().toISOString()}] Fetching trips (${requestId}):`, {
-      userId,
-      currentTrip: currentTrip ? {
-        id: currentTrip._id.toString(),
-        destination: currentTrip.destination,
-        status: currentTrip.status
-      } : null,
-      pastTripsCount: pastTrips.length
-    });
+    logger.debug({ userId, requestId, hasCurrent: !!currentTrip, pastTripsCount: pastTrips.length }, 'Fetching trips');
 
     return NextResponse.json({
       currentTrip,
       pastTrips
     });
   } catch (error) {
-    console.error('Error fetching trips:', error);
+    logger.error({ err: error }, 'Error fetching trips');
     return NextResponse.json(
       { error: 'Failed to fetch trips' },
       { status: 500 }

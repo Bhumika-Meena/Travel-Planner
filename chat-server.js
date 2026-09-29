@@ -269,3 +269,50 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Hardened Socket.IO chat server running on port ${PORT}`);
 });
+
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+// Handles SIGTERM (Render deploy/shutdown) and SIGINT (Ctrl+C in dev)
+
+let isShuttingDown = false;
+
+async function shutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`[chat-server] Received ${signal}. Starting graceful shutdown…`);
+
+  // 1. Stop accepting new HTTP connections
+  server.close(() => {
+    console.log('[chat-server] HTTP server closed.');
+  });
+
+  // 2. Close all active Socket.IO connections
+  io.close(() => {
+    console.log('[chat-server] Socket.IO server closed.');
+  });
+
+  // 3. Close MongoDB connection
+  if (dbInstance) {
+    try {
+      // dbInstance is the Db object; get its client to close cleanly
+      await dbInstance.client.close(false);
+      console.log('[chat-server] MongoDB connection closed.');
+    } catch (mongoErr) {
+      console.warn('[chat-server] Error closing MongoDB connection:', mongoErr.message);
+    }
+  }
+
+  console.log('[chat-server] Shutdown complete.');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
+
+// Handle unexpected errors without crashing (log and keep running)
+process.on('uncaughtException', (err) => {
+  console.error('[chat-server] Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[chat-server] Unhandled rejection:', reason);
+});

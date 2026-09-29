@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import { sendVerificationEmail, generateOTP } from '@/utils/email';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { validatePassword } from '@/utils/validation';
+import { RegisterSchema, validationError } from '@/lib/schemas';
+import logger from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -17,23 +19,13 @@ export async function POST(request: Request) {
     }
     const body = await request.json();
 
-    const { fullName, email, password } = body;
+    // Zod structural validation (types, lengths, format)
+    const parsed = RegisterSchema.safeParse(body);
+    if (!parsed.success) return validationError(parsed.error);
 
-    if (!fullName || !email || !password) {
-      return NextResponse.json(
-        { message: 'All fields are required', details: { fullName: !fullName, email: !email, password: !password } },
-        { status: 400 }
-      );
-    }
+    const { fullName, email, password } = parsed.data;
 
-    if (typeof fullName !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
-      return NextResponse.json(
-        { message: 'Invalid input format' },
-        { status: 400 }
-      );
-    }
-
-    // Enforce password length, type, and complexity on the server
+    // Password complexity check (strength rules beyond basic length)
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       return NextResponse.json(
@@ -84,7 +76,7 @@ export async function POST(request: Request) {
         try {
           await sendVerificationEmail(email, otp);
         } catch (emailErr) {
-          console.warn('Verification email dispatch warning:', emailErr);
+          logger.warn({ err: emailErr }, 'Verification email dispatch failed');
         }
 
         const isDev = process.env.NODE_ENV === 'development';
@@ -141,7 +133,7 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error({ err: error }, 'Registration error');
     return NextResponse.json(
       { message: 'Failed to register' },
       { status: 500 }

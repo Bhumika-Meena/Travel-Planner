@@ -3,6 +3,8 @@ import { connectToDatabase } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 import { signAuthToken, getAuthCookieOptions } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { LoginSchema, validationError } from '@/lib/schemas';
+import logger from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -21,14 +23,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, password } = await request.json();
+    const body = await request.json();
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { message: 'Email and password are required' },
-        { status: 400 }
-      );
-    }
+    const parsed = LoginSchema.safeParse(body);
+    if (!parsed.success) return validationError(parsed.error);
+
+    const { email, password } = parsed.data;
 
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email: email.toLowerCase() });
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error({ err: error }, 'Login error');
     return NextResponse.json(
       { message: 'Failed to login' },
       { status: 500 }

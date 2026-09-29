@@ -4,6 +4,8 @@ import { ObjectId } from 'mongodb';
 import { updateUserProgress } from '@/utils/userProgress';
 import { getAuthSession } from '@/lib/auth';
 import { calculateTaskReward } from '@/lib/gamification';
+import { CompleteTaskSchema, validationError } from '@/lib/schemas';
+import logger from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +21,10 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { placeIndex } = body;
+    const parsedBody = CompleteTaskSchema.safeParse(body);
+    if (!parsedBody.success) return validationError(parsedBody.error);
 
-    if (typeof placeIndex !== 'number' || !Number.isInteger(placeIndex) || placeIndex < 0) {
-      return NextResponse.json({ error: 'Invalid place index' }, { status: 400 });
-    }
+    const { placeIndex } = parsedBody.data;
 
     // Validate ObjectId format
     if (!ObjectId.isValid(params.tripId) || !ObjectId.isValid(userId)) {
@@ -137,7 +138,7 @@ export async function POST(
         newPoints = (userUpdateResult as any)?.points ?? ((userUpdateResult as any)?.value?.points ?? pointsToAdd);
       } catch (userErr) {
         // Rollback place completion so user does not lose points if database operation fails
-        console.error('Failed to increment points after place completion. Rolling back place status:', userErr);
+        logger.error({ err: userErr, userId, tripId: params.tripId, placeIndex }, 'Failed to increment points, rolling back place status');
         await db.collection('trips').updateOne(
           {
             _id: tripObjectId,
@@ -162,7 +163,7 @@ export async function POST(
       progressUpdate
     }, { status: 200 });
   } catch (error: any) {
-    console.error('Error completing task:', error);
+    logger.error({ err: error }, 'Error completing task');
     return NextResponse.json(
       { error: error?.message || 'Failed to complete task' },
       { status: 500 }
