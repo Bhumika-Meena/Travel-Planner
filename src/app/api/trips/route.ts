@@ -89,6 +89,8 @@ export async function POST(request: Request) {
   }
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getAuthSession(request);
@@ -103,6 +105,18 @@ export async function GET(request: NextRequest) {
     if (!ObjectId.isValid(userId)) {
       return apiError('Invalid user ID format', 'INVALID_ID', 400);
     }
+
+    // Pagination query parameters
+    let page = 1;
+    let limit = 20;
+    try {
+      const url = new URL(request.url);
+      page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
+      limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10) || 20));
+    } catch {
+      // In test or non-URL environments
+    }
+    const skip = (page - 1) * limit;
     
     // Get current trip
     const currentTrip = await db.collection('trips').findOne({
@@ -110,21 +124,43 @@ export async function GET(request: NextRequest) {
       status: 'current'
     });
 
-    // Get past trips
-    const pastTrips = await db.collection('trips')
+    // Get past trips with cursor pagination support
+    let pastTripsQuery = db.collection('trips')
       .find({
         userId: new ObjectId(userId),
         status: 'past'
       })
-      .sort({ createdAt: -1 })
-      .toArray();
+      .sort({ createdAt: -1 });
+
+    if (typeof pastTripsQuery.skip === 'function') {
+      pastTripsQuery = pastTripsQuery.skip(skip);
+    }
+    if (typeof pastTripsQuery.limit === 'function') {
+      pastTripsQuery = pastTripsQuery.limit(limit);
+    }
+
+    const pastTrips = await pastTripsQuery.toArray();
+
+    const totalPastTrips = typeof db.collection('trips').countDocuments === 'function'
+      ? await db.collection('trips').countDocuments({ userId: new ObjectId(userId), status: 'past' })
+      : pastTrips.length;
+
+    const totalPages = Math.ceil(totalPastTrips / limit) || 1;
 
     const requestId = request.headers.get('x-request-id') || 'initial';
     logger.debug({ userId, requestId, hasCurrent: !!currentTrip, pastTripsCount: pastTrips.length }, 'Fetching trips');
 
     return apiSuccess({
       currentTrip,
-      pastTrips
+      pastTrips,
+      pagination: {
+        page,
+        limit,
+        total: totalPastTrips,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     logger.error({ err: error }, 'Error fetching trips');

@@ -67,9 +67,33 @@ if (process.env.NODE_ENV === 'development') {
   clientPromise = client.connect();
 }
 
+let indexesCreated = false;
+
+export async function ensureDatabaseIndexes(db: any) {
+  if (indexesCreated || process.env.NODE_ENV === 'test') return;
+  indexesCreated = true;
+  try {
+    await Promise.allSettled([
+      db.collection('users').createIndex({ email: 1 }, { unique: true, sparse: true }),
+      db.collection('users').createIndex({ isVerified: 1, points: -1 }),
+      db.collection('users').createIndex({ points: -1 }),
+      db.collection('trips').createIndex({ userId: 1, status: 1, createdAt: -1 }),
+      db.collection('otps').createIndex({ email: 1 }),
+      db.collection('otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+      db.collection('messages').createIndex({ senderId: 1, receiverId: 1, createdAt: -1 }),
+      db.collection('messages').createIndex({ receiverId: 1, senderId: 1, createdAt: -1 }),
+    ]);
+  } catch (err) {
+    // Indexes might already exist or user lacks index privileges; ignore in production
+  }
+}
+
 export async function connectToDatabase() {
   const client = await clientPromise;
   const db = client.db(defaultDb);
+  if (!indexesCreated && process.env.NODE_ENV !== 'test') {
+    ensureDatabaseIndexes(db).catch(() => {});
+  }
   return { client, db };
 } 
 

@@ -124,24 +124,32 @@ async function saveChatMessage(msg) {
   }
 }
 
-async function getChatHistory(userA, userB) {
+async function getChatHistory(userA, userB, limit = 50, before = null) {
   const room = [userA, userB].sort().join('-');
+  const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
   try {
     const db = await getDb();
     if (db) {
+      const query = {
+        $or: [
+          { senderId: userA, receiverId: userB },
+          { senderId: userB, receiverId: userA }
+        ]
+      };
+      if (before) {
+        const beforeDate = new Date(before);
+        if (!isNaN(beforeDate.getTime())) {
+          query.createdAt = { $lt: beforeDate };
+        }
+      }
       const docs = await db.collection('messages')
-        .find({
-          $or: [
-            { senderId: userA, receiverId: userB },
-            { senderId: userB, receiverId: userA }
-          ]
-        })
-        .sort({ createdAt: 1 })
-        .limit(100)
+        .find(query)
+        .sort({ createdAt: -1 })
+        .limit(safeLimit)
         .toArray();
 
       if (docs.length > 0) {
-        return docs.map(d => ({
+        return docs.reverse().map(d => ({
           _id: d._id.toString(),
           senderId: d.senderId,
           receiverId: d.receiverId,
@@ -155,7 +163,8 @@ async function getChatHistory(userA, userB) {
     console.error('Error fetching chat history from MongoDB:', err);
   }
 
-  return memoryStore[room] || [];
+  const inMem = memoryStore[room] || [];
+  return inMem.slice(-safeLimit);
 }
 
 // Socket.IO Handshake Authentication Middleware
@@ -221,12 +230,19 @@ io.on('connection', (socket) => {
       const room = [authUserId, otherUserId].sort().join('-');
       socket.join(room);
 
-      // Load persistent chat history
-      const history = await getChatHistory(authUserId, otherUserId);
+      // Load persistent chat history (latest 50 messages)
+      const history = await getChatHistory(authUserId, otherUserId, 50);
       socket.emit('chatHistory', history);
     } else if (authUserId && !otherUserId) {
       socket.join(`user-${authUserId}`);
     }
+  });
+
+  // Handle paginated message retrieval
+  socket.on('loadMoreMessages', async ({ otherUserId, before, limit }) => {
+    if (!otherUserId) return;
+    const history = await getChatHistory(authUserId, otherUserId, limit || 30, before);
+    socket.emit('moreChatHistory', { otherUserId, history });
   });
 
   // Handle sending a message with content validation and sender enforcement
