@@ -130,6 +130,22 @@ describe('POST /api/trips/[tripId]/complete-task', () => {
     expect(typeof body.points).toBe('number');
   });
 
+  it('rejects duplicate/concurrent requests once task is marked completed', async () => {
+    const res1 = await POST(await makeRequest({ placeIndex: 0 }) as any, { params: { tripId: TRIP_ID } });
+    expect(res1.status).toBe(200);
+
+    mockTripUpdateOne.mockResolvedValueOnce({ modifiedCount: 0 });
+    mockWithTransaction.mockImplementationOnce(async () => {
+      throw new Error('ALREADY_COMPLETED');
+    });
+
+    const res2 = await POST(await makeRequest({ placeIndex: 0 }) as any, { params: { tripId: TRIP_ID } });
+    expect(res2.status).toBe(400);
+    const body2 = await res2.json();
+    expect(body2.error).toMatch(/already completed/i);
+    expect(mockUserFindOneAndUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 400 for invalid ObjectId tripId', async () => {
     const res = await POST(await makeRequest({ placeIndex: 0 }) as any, { params: { tripId: 'not-an-objectid' } });
     expect(res.status).toBe(400);
