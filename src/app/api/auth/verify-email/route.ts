@@ -1,17 +1,19 @@
-import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { sendVerificationEmail, generateOTP } from '@/utils/email';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { VerifyEmailSchema, validationError } from '@/lib/schemas';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import logger from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
     const clientIp = getClientIp(request);
     const rateLimit = checkRateLimit(`resend-otp:${clientIp}`, 5, 60 * 1000);
     if (!rateLimit.success) {
-      return NextResponse.json(
-        { message: 'Too many requests. Please wait a minute and try again.' },
-        { status: 429 }
+      return apiError(
+        'Too many requests. Please wait a minute and try again.',
+        'RATE_LIMIT_EXCEEDED',
+        429
       );
     }
 
@@ -32,9 +34,10 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found or already verified' },
-        { status: 400 }
+      return apiError(
+        'User not found or already verified',
+        'NOT_FOUND_OR_VERIFIED',
+        400
       );
     }
 
@@ -59,23 +62,20 @@ export async function POST(request: Request) {
     try {
       await sendVerificationEmail(email, otp);
     } catch (emailErr) {
-      console.warn('Verification email dispatch warning:', emailErr);
+      logger.warn({ err: emailErr }, 'Verification email dispatch warning');
     }
 
     const isDev = process.env.NODE_ENV === 'development';
 
-    return NextResponse.json(
+    return apiSuccess(
       { 
         message: 'Verification email sent',
         ...(isDev ? { devOtp: otp } : {})
       },
-      { status: 200 }
+      200
     );
   } catch (error) {
-    console.error('Error sending verification email:', error);
-    return NextResponse.json(
-      { message: 'Failed to send verification email' },
-      { status: 500 }
-    );
+    logger.error({ err: error }, 'Error sending verification email');
+    return apiError('Failed to send verification email', 'INTERNAL_SERVER_ERROR', 500);
   }
-} 
+}

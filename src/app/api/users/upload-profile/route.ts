@@ -6,6 +6,8 @@ import { ObjectId } from 'mongodb';
 import { getAuthSession } from '@/lib/auth';
 import sharp from 'sharp';
 import { v2 as cloudinary } from 'cloudinary';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import logger from '@/lib/logger';
 
 // Configure Cloudinary if environment credentials are provided
 if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
@@ -88,10 +90,7 @@ export async function POST(request: Request) {
     const session = await getAuthSession(request);
     const authenticatedUserId = session?.userId;
     if (!authenticatedUserId) {
-      return NextResponse.json(
-        { message: 'User not authenticated' },
-        { status: 401 }
-      );
+      return apiError('User not authenticated', 'UNAUTHORIZED', 401);
     }
 
     const formData = await request.formData();
@@ -101,33 +100,21 @@ export async function POST(request: Request) {
     // Use authenticated user ID to prevent ID spoofing
     const userId = authenticatedUserId;
     if (requestedUserId && requestedUserId !== userId) {
-      return NextResponse.json(
-        { message: 'Unauthorized: Cannot modify another user profile picture' },
-        { status: 403 }
-      );
+      return apiError('Unauthorized: Cannot modify another user profile picture', 'FORBIDDEN', 403);
     }
 
     if (!file) {
-      return NextResponse.json(
-        { message: 'File is required' },
-        { status: 400 }
-      );
+      return apiError('File is required', 'MISSING_FILE', 400);
     }
 
     // Validate ObjectId
     if (!ObjectId.isValid(userId)) {
-      return NextResponse.json(
-        { message: 'Invalid user ID format' },
-        { status: 400 }
-      );
+      return apiError('Invalid user ID format', 'INVALID_ID', 400);
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { message: 'File size must be less than 5MB' },
-        { status: 400 }
-      );
+      return apiError('File size must be less than 5MB', 'FILE_TOO_LARGE', 400);
     }
 
     // Convert file to buffer
@@ -137,9 +124,10 @@ export async function POST(request: Request) {
     // Initial magic byte check to reject obvious non-images (SVG, HTML, PHP, scripts)
     const imageInfo = validateImageMagicBytes(buffer);
     if (!imageInfo.valid) {
-      return NextResponse.json(
-        { message: 'Invalid image format. Only authentic JPEG, PNG, and WebP raster images are allowed.' },
-        { status: 400 }
+      return apiError(
+        'Invalid image format. Only authentic JPEG, PNG, and WebP raster images are allowed.',
+        'INVALID_FORMAT',
+        400
       );
     }
 
@@ -152,17 +140,19 @@ export async function POST(request: Request) {
       // Enforce safe raster formats only (strictly reject SVG, GIF, PDF, etc.)
       const allowedFormats = ['jpeg', 'png', 'webp'];
       if (!metadata.format || !allowedFormats.includes(metadata.format)) {
-        return NextResponse.json(
-          { message: 'Invalid format. Only JPEG, PNG, and WebP images are permitted.' },
-          { status: 400 }
+        return apiError(
+          'Invalid format. Only JPEG, PNG, and WebP images are permitted.',
+          'INVALID_FORMAT',
+          400
         );
       }
 
       // Enforce reasonable dimension limits (max 4096 x 4096 px)
       if ((metadata.width && metadata.width > 4096) || (metadata.height && metadata.height > 4096)) {
-        return NextResponse.json(
-          { message: 'Image dimensions exceed maximum allowed size (4096x4096px).' },
-          { status: 400 }
+        return apiError(
+          'Image dimensions exceed maximum allowed size (4096x4096px).',
+          'DIMENSIONS_EXCEEDED',
+          400
         );
       }
 
@@ -172,10 +162,11 @@ export async function POST(request: Request) {
         .webp({ quality: 85 })
         .toBuffer();
     } catch (decodeErr: any) {
-      console.error('Image decoding / re-encoding failed:', decodeErr.message);
-      return NextResponse.json(
-        { message: 'Failed to process image. File is corrupted or contains an invalid structure.' },
-        { status: 400 }
+      logger.error({ err: decodeErr }, 'Image decoding / re-encoding failed');
+      return apiError(
+        'Failed to process image. File is corrupted or contains an invalid structure.',
+        'CORRUPT_IMAGE',
+        400
       );
     }
 
@@ -186,7 +177,7 @@ export async function POST(request: Request) {
       try {
         profilePictureUrl = await uploadToCloudinary(cleanWebpBuffer, userId);
       } catch (cloudErr) {
-        console.warn('Cloudinary upload failed, falling back to local file storage:', cloudErr);
+        logger.warn({ err: cloudErr }, 'Cloudinary upload failed, falling back to local file storage');
       }
     }
 
@@ -202,11 +193,12 @@ export async function POST(request: Request) {
 
         profilePictureUrl = `/uploads/${filename}`;
       } catch (fsErr) {
-        console.error('Local filesystem write failed:', fsErr);
+        logger.error({ err: fsErr }, 'Local filesystem write failed');
         // Do NOT store huge Base64 strings in MongoDB
-        return NextResponse.json(
-          { message: 'Storage unavailable: Could not save image to persistent storage. Base64 database storage is disabled.' },
-          { status: 500 }
+        return apiError(
+          'Storage unavailable: Could not save image to persistent storage. Base64 database storage is disabled.',
+          'STORAGE_UNAVAILABLE',
+          500
         );
       }
     }
@@ -219,21 +211,12 @@ export async function POST(request: Request) {
     );
 
     if (result.matchedCount === 0) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return apiError('User not found', 'NOT_FOUND', 404);
     }
 
-    return NextResponse.json(
-      { profilePicture: profilePictureUrl },
-      { status: 200 }
-    );
+    return apiSuccess({ profilePicture: profilePictureUrl }, 200);
   } catch (error) {
-    console.error('Profile picture upload error:', error);
-    return NextResponse.json(
-      { message: 'Failed to upload profile picture' },
-      { status: 500 }
-    );
+    logger.error({ err: error }, 'Profile picture upload error');
+    return apiError('Failed to upload profile picture', 'INTERNAL_SERVER_ERROR', 500);
   }
 }

@@ -3,6 +3,8 @@ import { HfInference } from '@huggingface/inference';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { getAuthSession } from '@/lib/auth';
 import { AiTripRequestSchema, validationError } from '@/lib/schemas';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import logger from '@/lib/logger';
 
 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
 
@@ -74,11 +76,11 @@ export async function POST(request: Request) {
           throw new Error('Invalid response format');
         }
       } catch (parseError) {
-        console.error('Error parsing AI response:', parseError);
+        logger.error({ err: parseError }, 'Error parsing AI response');
         throw new Error('Failed to parse AI response');
       }
     } catch (apiError) {
-      console.error('Error getting AI suggestions:', apiError);
+      logger.error({ err: apiError }, 'Error getting AI suggestions');
       // Fallback to default suggestions if API call fails
       suggestions = [
       {
@@ -152,12 +154,9 @@ export async function POST(request: Request) {
       isSelected: true
     }));
 
-    return NextResponse.json({ suggestions });
+    return apiSuccess({ suggestions }, 200);
   } catch (error) {
-    console.error('Error in suggestions endpoint:', error);
-    return NextResponse.json(
-      { error: 'Failed to get suggestions' },
-      { status: 500 }
-    );
+    logger.error({ err: error }, 'Error in suggestions endpoint');
+    return apiError('Failed to get suggestions', 'INTERNAL_SERVER_ERROR', 500);
   }
 } 

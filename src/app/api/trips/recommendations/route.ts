@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { getAuthSession } from '@/lib/auth';
 import { AiTripRequestSchema, validationError } from '@/lib/schemas';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import logger from '@/lib/logger';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -42,9 +43,10 @@ export async function POST(request: Request) {
     const rateLimitKey = session?.userId ? `ai-rec:user:${session.userId}` : `ai-rec:ip:${clientIp}`;
     const rateLimit = checkRateLimit(rateLimitKey, 10, 60 * 1000);
     if (!rateLimit.success) {
-      return NextResponse.json(
-        { message: 'Too many requests. Please wait a moment before asking for recommendations again.' },
-        { status: 429 }
+      return apiError(
+        'Too many requests. Please wait a moment before asking for recommendations again.',
+        'RATE_LIMIT_EXCEEDED',
+        429
       );
     }
 
@@ -58,11 +60,11 @@ export async function POST(request: Request) {
     const cleanDestination = destination;
 
     if (!process.env.GEMINI_API_KEY) {
-      console.warn('Gemini API key not configured, returning fallback recommendations');
-      return NextResponse.json({
+      logger.warn('Gemini API key not configured, returning fallback recommendations');
+      return apiSuccess({
         recommendations: fallbackRecommendations,
         message: 'Using fallback recommendations'
-      });
+      }, 200);
     }
 
     // Try to get recommendations from Gemini with an 8-second timeout
@@ -101,7 +103,7 @@ export async function POST(request: Request) {
       try {
         recommendations = JSON.parse(jsonStr);
       } catch (parseError) {
-        console.error('Error parsing Gemini response:', parseError);
+        logger.error({ err: parseError }, 'Error parsing Gemini response');
         throw new Error('Invalid response format from Gemini API');
       }
 
@@ -117,23 +119,23 @@ export async function POST(request: Request) {
         points: Math.min(Math.max(rec.points || 5, 1), 10)
       }));
 
-      return NextResponse.json({ recommendations });
+      return apiSuccess({ recommendations }, 200);
     } catch (geminiError: any) {
-      console.error('Gemini API error:', geminiError);
+      logger.error({ err: geminiError }, 'Gemini API error');
       
       // If Gemini API fails, return fallback recommendations
-      return NextResponse.json({
+      return apiSuccess({
         recommendations: fallbackRecommendations,
         message: 'Using fallback recommendations due to API limitations'
-      });
+      }, 200);
     }
   } catch (error: any) {
-    console.error('Recommendations error:', error);
+    logger.error({ err: error }, 'Recommendations error');
     
     // If everything fails, return fallback recommendations
-    return NextResponse.json({
+    return apiSuccess({
       recommendations: fallbackRecommendations,
       message: 'Using fallback recommendations due to an error'
-    });
+    }, 200);
   }
-} 
+}
