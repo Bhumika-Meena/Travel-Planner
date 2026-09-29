@@ -1,18 +1,19 @@
-import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { connectToDatabase } from '@/lib/mongodb';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import logger from '@/lib/logger';
-
 import { VerifyOtpSchema, validationError } from '@/lib/schemas';
+import { apiSuccess, apiError } from '@/lib/api-response';
 
 export async function POST(request: Request) {
   try {
     const clientIp = getClientIp(request);
     const rateLimit = checkRateLimit(`verify-otp:${clientIp}`, 5, 60 * 1000);
     if (!rateLimit.success) {
-      return NextResponse.json(
-        { message: 'Too many verification attempts. Please wait a minute and try again.' },
-        { status: 429 }
+      return apiError(
+        'Too many verification attempts. Please wait a minute and try again.',
+        'RATE_LIMIT_EXCEEDED',
+        429
       );
     }
 
@@ -33,39 +34,43 @@ export async function POST(request: Request) {
     });
 
     if (!otpRecord) {
-      return NextResponse.json(
-        { message: 'Invalid or expired OTP' },
-        { status: 400 }
-      );
+      return apiError('Invalid or expired OTP', 'INVALID_OTP', 400);
     }
 
     // Check if maximum failed attempts exceeded
     if ((otpRecord.failedAttempts || 0) >= 5) {
       await db.collection('otps').deleteOne({ _id: otpRecord._id });
-      return NextResponse.json(
-        { message: 'Too many failed attempts. Please request a new verification code.' },
-        { status: 400 }
+      return apiError(
+        'Too many failed attempts. Please request a new verification code.',
+        'TOO_MANY_ATTEMPTS',
+        400
       );
     }
 
-    // Check OTP match
-    if (otpRecord.otp !== otp) {
+    // Timing-safe OTP comparison
+    const expectedOtp = String(otpRecord.otp || '');
+    const receivedOtp = String(otp);
+    const isLengthMatch = expectedOtp.length === receivedOtp.length;
+    const isTimingSafeMatch = isLengthMatch && crypto.timingSafeEqual(
+      Buffer.from(expectedOtp, 'utf8'),
+      Buffer.from(receivedOtp, 'utf8')
+    );
+
+    if (!isTimingSafeMatch) {
       const newAttempts = (otpRecord.failedAttempts || 0) + 1;
       if (newAttempts >= 5) {
         await db.collection('otps').deleteOne({ _id: otpRecord._id });
-        return NextResponse.json(
-          { message: 'Too many failed attempts. Please request a new verification code.' },
-          { status: 400 }
+        return apiError(
+          'Too many failed attempts. Please request a new verification code.',
+          'TOO_MANY_ATTEMPTS',
+          400
         );
       }
       await db.collection('otps').updateOne(
         { _id: otpRecord._id },
         { $inc: { failedAttempts: 1 } }
       );
-      return NextResponse.json(
-        { message: 'Invalid or expired OTP' },
-        { status: 400 }
-      );
+      return apiError('Invalid or expired OTP', 'INVALID_OTP', 400);
     }
 
     // Update user's verification status
@@ -74,18 +79,12 @@ export async function POST(request: Request) {
       { $set: { isVerified: true } }
     );
 
-    // Delete the used OTP
+    // Delete the used OTP immediately to prevent replay
     await db.collection('otps').deleteOne({ _id: otpRecord._id });
 
-    return NextResponse.json(
-      { message: 'Email verified successfully' },
-      { status: 200 }
-    );
+    return apiSuccess({ message: 'Email verified successfully' }, 200);
   } catch (error) {
     logger.error({ err: error }, 'OTP verification error');
-    return NextResponse.json(
-      { message: 'Failed to verify OTP' },
-      { status: 500 }
-    );
+    return apiError('Failed to verify OTP', 'INTERNAL_SERVER_ERROR', 500);
   }
-} 
+}

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import logger from '@/lib/logger';
+import { apiSuccess, apiError } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / limit);
 
-    return NextResponse.json(
+    return apiSuccess(
       {
         users,
         pagination: {
@@ -53,13 +53,10 @@ export async function GET(request: NextRequest) {
           hasPrev: page > 1,
         },
       },
-      { status: 200 }
+      200
     );
   } catch (error) {
     logger.error({ err: error }, 'Leaderboard error');
-    return NextResponse.json(
-      { message: 'Failed to fetch leaderboard' },
-      { status: 500 }
-    );
+    return apiError('Failed to fetch leaderboard', 'INTERNAL_SERVER_ERROR', 500);
   }
 }
