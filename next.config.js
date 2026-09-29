@@ -49,28 +49,30 @@ const nextConfig = {
             key: 'X-DNS-Prefetch-Control',
             value: 'on',
           },
+          // Strict Transport Security (HSTS) in production
+          ...(process.env.NODE_ENV === 'production'
+            ? [
+                {
+                  key: 'Strict-Transport-Security',
+                  value: 'max-age=63072000; includeSubDomains; preload',
+                },
+              ]
+            : []),
           /**
            * Content-Security-Policy:
-           * - Allows scripts/styles from self and CDNs used by Next.js and the app
-           * - Allows connections to MongoDB Atlas, Cloudinary, HuggingFace, Google AI APIs
-           * - Allows fonts from Google Fonts
-           * - Restricts frames to none (no embedding)
-           * Note: 'unsafe-eval' is NOT included. If a dependency requires it, address that
-           *       dependency directly rather than weakening the policy globally.
+           * - Avoids 'unsafe-eval'
+           * - Restricts sources to strictly what the application requires
+           * - Allows Socket.IO, HuggingFace, Google Generative AI, Cloudinary
            */
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // Scripts: self + Next.js inline script hash placeholders
+              "base-uri 'self'",
               "script-src 'self' 'unsafe-inline'",
-              // Styles: self + inline styles (Next.js injects these)
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              // Fonts
               "font-src 'self' https://fonts.gstatic.com",
-              // Images: self + Cloudinary + Unsplash + data URIs for small icons
               "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com",
-              // API connections: self + external APIs + chat socket server
               [
                 "connect-src 'self'",
                 process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || 'ws://localhost:3001',
@@ -79,13 +81,10 @@ const nextConfig = {
                 'https://generativelanguage.googleapis.com',
                 'https://api.cloudinary.com',
               ].join(' '),
-              // No iframes from anywhere
               "frame-src 'none'",
-              // Object/embed tags blocked
+              "frame-ancestors 'none'",
               "object-src 'none'",
-              // Form actions only to self
               "form-action 'self'",
-              // Upgrade insecure requests in production
               ...(process.env.NODE_ENV === 'production' ? ["upgrade-insecure-requests"] : []),
             ].join('; '),
           },
