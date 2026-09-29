@@ -3,6 +3,8 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import logger from '@/lib/logger';
 
+import { VerifyOtpSchema, validationError } from '@/lib/schemas';
+
 export async function POST(request: Request) {
   try {
     const clientIp = getClientIp(request);
@@ -14,14 +16,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, otp } = await request.json();
-
-    if (!email || !otp) {
-      return NextResponse.json(
-        { message: 'Email and OTP are required' },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = VerifyOtpSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError(parsed.error);
     }
+
+    const { email, otp } = parsed.data;
 
     const { db } = await connectToDatabase();
 

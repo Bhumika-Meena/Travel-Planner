@@ -3,26 +3,19 @@ import { connectToDatabase } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 import { validatePassword } from '@/utils/validation';
 import logger from '@/lib/logger';
+import { ResetPasswordSchema, validationError } from '@/lib/schemas';
 
 export async function POST(request: Request) {
   try {
-    const { token, password } = await request.json();
-
-    if (!token || !password) {
-      return NextResponse.json(
-        { message: 'Token and password are required' },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = ResetPasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError(parsed.error);
     }
 
-    if (typeof token !== 'string' || typeof password !== 'string') {
-      return NextResponse.json(
-        { message: 'Invalid input format' },
-        { status: 400 }
-      );
-    }
+    const { token, password } = parsed.data;
 
-    // Enforce password length, type, and complexity on the server
+    // Enforce extra password dictionary and pattern checks
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       return NextResponse.json(

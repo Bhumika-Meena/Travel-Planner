@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { getAuthSession } from '@/lib/auth';
+import { ProfileUpdateSchema, validationError } from '@/lib/schemas';
 
 export async function GET(
   request: NextRequest,
@@ -110,16 +111,12 @@ export async function PUT(
 
     // Get request body
     const body = await request.json();
-    const { fullName, email, bio, isTripPublic } = body;
-
-    // Validate required fields
-    if (!fullName || !email) {
-      return NextResponse.json(
-        { error: 'Full name and email are required' },
-        { status: 400 }
-      );
+    const parsed = ProfileUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError(parsed.error);
     }
 
+    const { fullName, email, bio, isTripPublic } = parsed.data;
     const updateFields: Record<string, any> = { fullName, email, bio };
     if (typeof isTripPublic === 'boolean') {
       updateFields.isTripPublic = isTripPublic;

@@ -5,6 +5,8 @@ import crypto from 'crypto';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import logger from '@/lib/logger';
 
+import { ForgotPasswordSchema, validationError } from '@/lib/schemas';
+
 export async function POST(request: Request) {
   try {
     const clientIp = getClientIp(request);
@@ -16,14 +18,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { message: 'Email is required' },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = ForgotPasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError(parsed.error);
     }
+
+    const { email } = parsed.data;
 
     const { db } = await connectToDatabase();
     const user = await db.collection('users').findOne({ email: email.toLowerCase() });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { sendVerificationEmail, generateOTP } from '@/utils/email';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { VerifyEmailSchema, validationError } from '@/lib/schemas';
 
 export async function POST(request: Request) {
   try {
@@ -14,14 +15,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { message: 'Email is required' },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = VerifyEmailSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError(parsed.error);
     }
+
+    const { email } = parsed.data;
 
     const { db } = await connectToDatabase();
 

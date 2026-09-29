@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { HfInference } from '@huggingface/inference';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { getAuthSession } from '@/lib/auth';
+import { AiTripRequestSchema, validationError } from '@/lib/schemas';
 
 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
 
@@ -18,24 +19,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const { destination, startDate, endDate } = await request.json();
-
-    // Validate required fields
-    if (!destination || !startDate || !endDate) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = AiTripRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError(parsed.error);
     }
 
-    if (typeof destination !== 'string' || destination.trim().length === 0 || destination.length > 100) {
-      return NextResponse.json(
-        { error: 'Destination must be a text between 1 and 100 characters' },
-        { status: 400 }
-      );
-    }
-
-    const cleanDestination = destination.trim().slice(0, 100);
+    const { destination, startDate, endDate } = parsed.data;
+    const cleanDestination = destination;
 
     // Calculate trip duration in days
     const start = new Date(startDate);
