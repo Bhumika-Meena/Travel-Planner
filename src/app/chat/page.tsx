@@ -92,14 +92,14 @@ export default function ChatInbox() {
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-slate-50/50">
       {/* Top Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-xs">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link
               href="/dashboard"
-              className="text-gray-500 hover:text-gray-700 transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+              className="text-slate-500 hover:text-slate-900 transition-colors p-2 rounded-xl hover:bg-slate-100"
               title="Back to Dashboard"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,9 +107,9 @@ export default function ChatInbox() {
               </svg>
             </Link>
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-bold text-gray-900">Messages</h1>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Messages</h1>
               {totalUnread > 0 && (
-                <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full font-semibold">
+                <span className="bg-primary text-white text-xs px-2.5 py-0.5 rounded-full font-semibold shadow-xs">
                   {totalUnread} new
                 </span>
               )}
@@ -118,7 +118,7 @@ export default function ChatInbox() {
 
           <Link
             href="/leaderboard"
-            className="inline-flex items-center space-x-1.5 text-sm font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3.5 py-1.5 rounded-lg transition-colors"
+            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-primary hover:text-primary-dark bg-primary/10 hover:bg-primary/15 px-3.5 py-2 rounded-xl transition-all"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -129,7 +129,7 @@ export default function ChatInbox() {
       </header>
 
       {/* Main Inbox Container */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search Bar */}
         <div className="mb-6 relative">
           <input
@@ -137,10 +137,10 @@ export default function ChatInbox() {
             placeholder="Search travelers or messages..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 pl-10 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+            className="input-field pl-10 bg-white"
           />
           <svg
-            className="w-5 h-5 text-gray-400 absolute left-3 top-3"
+            className="w-5 h-5 text-slate-400 absolute left-3.5 top-3"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -158,15 +158,15 @@ export default function ChatInbox() {
 
         {/* Loading State */}
         {loading && (
-          <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-card overflow-hidden">
             {[1, 2, 3].map((n) => (
               <div key={n} className="p-4 flex items-center space-x-4 animate-pulse">
-                <div className="w-12 h-12 rounded-full bg-gray-200" />
+                <div className="w-12 h-12 rounded-full bg-slate-200" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-1/4" />
-                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                  <div className="h-4 bg-slate-200 rounded w-1/4" />
+                  <div className="h-3 bg-slate-200 rounded w-1/2" />
                 </div>
-                <div className="h-3 bg-gray-200 rounded w-12" />
+                <div className="h-3 bg-slate-200 rounded w-12" />
               </div>
             ))}
           </div>
@@ -174,12 +174,12 @@ export default function ChatInbox() {
 
         {/* Conversations List */}
         {!loading && filteredConversations.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-card overflow-hidden">
             {filteredConversations.map((conv) => (
               <Link
                 key={conv.partnerId}
                 href={`/chat/${conv.partnerId}`}
-                className="flex items-center justify-between p-4 hover:bg-gray-50/80 transition-colors group cursor-pointer"
+                className="flex items-center justify-between p-4.5 hover:bg-slate-50/80 transition-colors group cursor-pointer"
               >
                 <div className="flex items-center space-x-3.5 min-w-0 flex-1 pr-4">
                   <div className="relative">
@@ -187,34 +187,34 @@ export default function ChatInbox() {
                       src={conv.partnerAvatar}
                       name={conv.partnerName}
                       size="md"
-                      className="border border-gray-100 shadow-xs"
+                      className="border border-slate-100 shadow-xs"
                     />
                     {conv.unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary border-2 border-white rounded-full" />
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary border-2 border-white rounded-full ring-2 ring-primary/20" />
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">
+                      <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-primary transition-colors">
                         {conv.partnerName}
                       </p>
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/60">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
                         Lv {conv.partnerLevel}
                       </span>
                     </div>
-                    <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                    <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>
                       {conv.lastMessage || 'Sent an attachment'}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex flex-col items-end shrink-0 space-y-1">
-                  <span className="text-[11px] text-gray-400 font-medium">
+                  <span className="text-[11px] text-slate-400 font-medium">
                     {formatChatTime(conv.timestamp)}
                   </span>
                   {conv.unreadCount > 0 && (
-                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-primary rounded-full">
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-primary rounded-full shadow-xs">
                       {conv.unreadCount}
                     </span>
                   )}
@@ -226,26 +226,26 @@ export default function ChatInbox() {
 
         {/* Empty Search Result */}
         {!loading && conversations.length > 0 && filteredConversations.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-            <p className="text-gray-500 text-sm">No conversations match &ldquo;{searchQuery}&rdquo;</p>
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-card">
+            <p className="text-slate-500 text-sm">No conversations match &ldquo;{searchQuery}&rdquo;</p>
           </div>
         )}
 
         {/* Empty State (No Conversations Yet) */}
         {!loading && conversations.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm max-w-lg mx-auto mt-6">
-            <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-12 text-center shadow-card max-w-lg mx-auto mt-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 shadow-xs">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">No messages yet</h3>
-            <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
+            <h3 className="text-lg font-bold text-slate-900 mb-1 tracking-tight">No messages yet</h3>
+            <p className="text-slate-500 text-sm mb-6 max-w-sm mx-auto">
               Connect with other travelers from the leaderboard to ask for destination recommendations, plan joint itineraries, or chat about adventures!
             </p>
             <Link
               href="/leaderboard"
-              className="btn-primary inline-flex items-center space-x-2 px-5 py-2.5 shadow-sm"
+              className="btn-primary inline-flex items-center space-x-2 px-5 py-2.5 text-sm shadow-md shadow-primary/20"
             >
               <span>Explore Travelers on Leaderboard</span>
               <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

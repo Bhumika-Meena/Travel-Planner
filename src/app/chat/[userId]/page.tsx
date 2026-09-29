@@ -180,45 +180,46 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
   const isSendDisabled = !newMessage.trim();
 
   return (
-    <div className="min-h-screen bg-gray-50/50 flex flex-col">
-      <div className="w-full max-w-3xl mx-auto flex flex-col flex-1 bg-white sm:my-6 sm:rounded-2xl sm:border sm:border-gray-200 sm:shadow-sm overflow-hidden">
+    <div className="min-h-screen bg-slate-50/50 flex flex-col">
+      <div className="w-full max-w-3xl mx-auto flex flex-col flex-1 bg-white sm:my-6 sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-card overflow-hidden">
         {/* Chat Room Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 py-3.5 bg-white z-10 shadow-xs">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-3.5 bg-white z-10 shadow-xs">
           <div className="flex items-center space-x-3">
             <Link
               href="/chat"
-              className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors p-1 -ml-1 rounded-lg hover:bg-gray-100"
+              className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors p-1.5 -ml-1 rounded-xl hover:bg-slate-100"
               title="Back to Messages"
             >
               <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              <span className="hidden sm:inline">Back to Messages</span>
+              <span className="hidden sm:inline">Back</span>
             </Link>
 
             {otherUser && (
-              <div className="flex items-center space-x-3 pl-2 border-l border-gray-200">
+              <div className="flex items-center space-x-3 pl-2 border-l border-slate-200">
                 <Link href={`/profile/${otherUser._id}`} className="hover:opacity-90 transition-opacity">
                   <Avatar
                     src={otherUser.profilePicture}
                     name={otherUser.fullName}
                     size="md"
+                    className="shadow-xs"
                   />
                 </Link>
                 <div>
                   <Link
                     href={`/profile/${otherUser._id}`}
-                    className="font-semibold text-gray-900 hover:text-primary transition-colors text-sm sm:text-base flex items-center space-x-1.5"
+                    className="font-semibold text-slate-900 hover:text-primary transition-colors text-sm sm:text-base flex items-center space-x-1.5"
                   >
                     <span>{otherUser.fullName}</span>
                     {otherUser.level && (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
                         Lv {otherUser.level}
                       </span>
                     )}
                   </Link>
-                  <p className="text-[11px] text-emerald-600 font-medium flex items-center">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1" />
+                  <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                     Online
                   </p>
                 </div>
@@ -229,7 +230,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
           {otherUser && (
             <Link
               href={`/profile/${otherUser._id}`}
-              className="text-xs font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-semibold text-primary hover:text-primary-dark bg-primary/10 hover:bg-primary/15 px-3.5 py-1.5 rounded-xl transition-all"
             >
               View Profile
             </Link>
@@ -240,7 +241,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
         <div
           ref={chatContainerRef}
           onScroll={checkIfNearBottom}
-          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 bg-gray-50/30 relative"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 bg-slate-50/40 relative"
           style={{ minHeight: '380px' }}
         >
           {loadingHistory && (
@@ -251,17 +252,17 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
 
           {/* Friendly Empty State */}
           {!loadingHistory && messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
+            <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500">
               <Avatar
                 src={otherUser?.profilePicture}
                 name={otherUser?.fullName || 'Traveler'}
                 size="lg"
-                className="mb-3.5 shadow-xs"
+                className="mb-3.5 shadow-card"
               />
-              <h3 className="font-bold text-gray-900 text-base">
+              <h3 className="font-bold text-slate-900 text-base tracking-tight">
                 Say hello to {otherUser?.fullName || 'this traveler'}! 👋
               </h3>
-              <p className="text-xs text-gray-500 mt-1.5 max-w-xs leading-relaxed">
+              <p className="text-xs text-slate-500 mt-1.5 max-w-xs leading-relaxed">
                 Ask about their favorite destinations, swap travel tips, or coordinate your next trip together.
               </p>
             </div>
@@ -280,20 +281,20 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
                     src={otherUser.profilePicture}
                     name={otherUser.fullName}
                     size="sm"
-                    className="mb-1 hidden sm:flex"
+                    className="mb-1 hidden sm:flex shadow-xs"
                   />
                 )}
                 <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[80%] sm:max-w-md`}>
                   <div
                     className={`px-4 py-2.5 rounded-2xl break-words text-sm shadow-xs ${
                       isMe
-                        ? "bg-primary text-white rounded-br-xs"
-                        : "bg-white text-gray-900 border border-gray-200/80 rounded-bl-xs"
+                        ? "bg-primary text-white rounded-br-xs shadow-primary/10"
+                        : "bg-white text-slate-900 border border-slate-200/90 rounded-bl-xs shadow-xs"
                     }`}
                   >
                     <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   </div>
-                  <span className="text-[10px] text-gray-400 mt-1 px-1 font-medium select-none">
+                  <span className="text-[10px] text-slate-400 mt-1 px-1 font-medium select-none">
                     {formatTime(msg.timestamp)}
                   </span>
                 </div>
@@ -309,7 +310,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
           <div className="relative flex justify-center">
             <button
               onClick={() => scrollToBottom(true)}
-              className="absolute -top-12 z-20 inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-full shadow-lg hover:bg-black transition-all animate-bounce"
+              className="absolute -top-12 z-20 inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-full shadow-lg hover:bg-black transition-all animate-bounce"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -320,11 +321,11 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
         )}
 
         {/* Message Input Box */}
-        <form onSubmit={handleSend} className="border-t border-gray-200 p-3 sm:p-4 bg-white">
-          <div className="flex items-end space-x-2 bg-gray-50 border border-gray-300 rounded-2xl p-1.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+        <form onSubmit={handleSend} className="border-t border-slate-200 p-3 sm:p-4 bg-white">
+          <div className="flex items-end space-x-2 bg-slate-50 border border-slate-300 rounded-2xl p-1.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:bg-white transition-all">
             <textarea
               rows={1}
-              className="flex-1 bg-transparent px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 resize-none focus:outline-none max-h-32"
+              className="flex-1 bg-transparent px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 resize-none focus:outline-none max-h-32"
               placeholder={`Message ${otherUser?.fullName || 'traveler'}... (Enter to send)`}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
@@ -335,8 +336,8 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
               disabled={isSendDisabled}
               className={`inline-flex items-center justify-center w-9 h-9 rounded-xl transition-all shrink-0 ${
                 isSendDisabled
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-primary text-white hover:bg-primary/90 shadow-sm'
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'btn-primary shadow-xs'
               }`}
               title="Send message (Enter)"
             >
@@ -345,8 +346,8 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
               </svg>
             </button>
           </div>
-          <p className="text-[11px] text-gray-400 mt-1.5 px-2 hidden sm:block">
-            Press <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Enter</kbd> to send, <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Shift + Enter</kbd> for new line
+          <p className="text-[11px] text-slate-400 mt-1.5 px-2 hidden sm:block">
+            Press <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono border border-slate-200">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono border border-slate-200">Shift + Enter</kbd> for new line
           </p>
         </form>
       </div>
