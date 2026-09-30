@@ -19,9 +19,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+          <div className="min-h-screen flex flex-col bg-slate-50/50 text-slate-900 selection:bg-blue-500 selection:text-white">
             {children}
-          </main>
+          </div>
         </AuthProvider>
       </body>
     </html>

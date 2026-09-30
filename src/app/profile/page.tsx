@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { sanitizeInput, validateEmail, validateName, validateBio } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/Avatar';
+import { GoogleMapsButton } from '@/components/GoogleMapsButton';
 
 interface User {
   _id: string;
@@ -330,20 +331,28 @@ export default function Profile() {
           </div>
 
           {/* Current Trip Section */}
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <h3 className="text-lg font-medium text-blue-900">Current Trip</h3>
-            <div className="mt-2">
+          <div className="mt-5 p-4 rounded-xl bg-blue-50/70 border border-blue-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-blue-900">Current Adventure</h3>
+              {user.currentTrip && (
+                <GoogleMapsButton
+                  placeName={user.currentTrip.destination}
+                  variant="pill"
+                />
+              )}
+            </div>
+            <div>
               {user.currentTrip ? (
-                <>
-                  <p className="text-blue-700">
-                    <span className="font-medium">Destination:</span> {user.currentTrip.destination}
+                <div className="space-y-1">
+                  <p className="text-blue-950 font-bold text-base">
+                    {user.currentTrip.destination}
                   </p>
-                  <p className="text-blue-700">
-                    <span className="font-medium">Dates:</span> {formatDate(user.currentTrip.startDate)} - {formatDate(user.currentTrip.endDate)}
+                  <p className="text-blue-700 text-xs font-medium">
+                    {formatDate(user.currentTrip.startDate)} – {formatDate(user.currentTrip.endDate)}
                   </p>
-                </>
+                </div>
               ) : (
-                <p className="text-blue-700">None</p>
+                <p className="text-blue-700 text-xs">No active trip currently in progress</p>
               )}
             </div>
           </div>
