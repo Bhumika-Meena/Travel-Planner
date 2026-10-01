@@ -58,7 +58,7 @@ export const CurrentTripCard: React.FC<CurrentTripCardProps> = ({
   return (
     <div className="bg-white rounded-2xl shadow-card border border-slate-100/90 overflow-hidden mb-8 transition-shadow hover:shadow-elevated">
       {/* Trip Header Banner */}
-      <div className="p-6 sm:p-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white relative">
+      <div className="p-6 sm:p-7 bg-blue-600 text-white">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -115,7 +115,7 @@ export const CurrentTripCard: React.FC<CurrentTripCardProps> = ({
             <span>Exploration Progress</span>
             <span>{progressPercent}% Complete</span>
           </div>
-          <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden backdrop-blur-xs">
+          <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
             <div
               className="bg-emerald-400 h-2 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progressPercent}%` }}

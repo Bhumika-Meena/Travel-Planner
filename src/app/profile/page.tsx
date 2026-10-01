@@ -273,7 +273,7 @@ export default function Profile() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <div className="page-canvas flex items-center justify-center text-slate-500 text-sm">Loading...</div>;
   }
 
   if (!user) {
@@ -281,18 +281,18 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-      <div className="max-w-4xl mx-auto py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-          <Link href="/dashboard" className="btn-secondary">
+    <div className="page-canvas">
+      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">My Profile</h1>
+          <Link href="/dashboard" className="btn-secondary self-start">
             Back to Dashboard
           </Link>
         </div>
 
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="surface p-6 sm:p-8">
           {/* Profile header */}
-          <div className="flex items-center space-x-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
             <div className="relative shrink-0">
               <Avatar
                 src={previewUrl || user.profilePicture}
@@ -306,25 +306,25 @@ export default function Profile() {
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{user.fullName}</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{user.fullName}</h1>
               <div className="mt-2 space-y-1">
                 <div className="flex items-center">
                   <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                  <span className="ml-2 text-gray-700">Level {user.level}</span>
+                  <span className="ml-2 text-slate-700">Level {user.level}</span>
                 </div>
                 <div className="flex items-center">
                   <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" />
                   </svg>
-                  <span className="ml-2 text-gray-700">{formatPoints(user.points)} Points</span>
+                  <span className="ml-2 text-slate-700">{formatPoints(user.points)} Points</span>
                 </div>
                 <div className="flex items-center">
                   <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="ml-2 text-gray-700">{user.totalTrips} Trips</span>
+                  <span className="ml-2 text-slate-700">{user.totalTrips} Trips</span>
                 </div>
               </div>
             </div>
@@ -361,7 +361,7 @@ export default function Profile() {
           <div className="mt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="fullName" className="form-label">
                   Full Name
                 </label>
                 <input
@@ -371,7 +371,7 @@ export default function Profile() {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   disabled={!editing}
-                  className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                  className={`input-field ${
                     errors.fullName ? 'border-red-500' : ''
                   }`}
                 />
@@ -381,7 +381,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" className="form-label">
                   Email
                 </label>
                 <input
@@ -391,7 +391,7 @@ export default function Profile() {
                   value={formData.email}
                   onChange={handleInputChange}
                   disabled={!editing}
-                  className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                  className={`input-field ${
                     errors.email ? 'border-red-500' : ''
                   }`}
                 />
@@ -401,7 +401,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="bio" className="form-label">
                   Bio
                 </label>
                 <textarea
@@ -411,7 +411,7 @@ export default function Profile() {
                   onChange={handleInputChange}
                   disabled={!editing}
                   rows={3}
-                  className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                  className={`input-field ${
                     errors.bio ? 'border-red-500' : ''
                   }`}
                   placeholder="Tell us about yourself..."
@@ -422,7 +422,7 @@ export default function Profile() {
               </div>
 
               {/* Trip Privacy Setting */}
-              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3.5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
                     <input
@@ -432,14 +432,14 @@ export default function Profile() {
                       checked={formData.isTripPublic}
                       onChange={(e) => setFormData(prev => ({ ...prev, isTripPublic: e.target.checked }))}
                       disabled={!editing}
-                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded disabled:opacity-60 cursor-pointer"
+                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-slate-300 rounded disabled:opacity-60 cursor-pointer"
                     />
                   </div>
                   <div className="ml-3 text-sm">
-                    <label htmlFor="isTripPublic" className="font-medium text-gray-700 cursor-pointer">
+                    <label htmlFor="isTripPublic" className="font-medium text-slate-700 cursor-pointer">
                       Share Current Trip on Public Profile
                     </label>
-                    <p className="text-gray-500 text-xs mt-0.5">
+                    <p className="text-slate-500 text-xs mt-0.5">
                       When unchecked (default), your active destination and travel dates remain strictly private and invisible to other travelers.
                     </p>
                   </div>
@@ -447,13 +447,13 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="form-label">
                   Profile Picture
                 </label>
-                <p className="text-xs text-gray-500 mt-0.5">JPG, PNG, or WebP up to 5MB</p>
+                <p className="text-xs text-slate-500 mt-0.5">JPG, PNG, or WebP up to 5MB</p>
 
                 {uploadError && (
-                  <div className="mt-2 p-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md flex items-center">
+                  <div className="mt-2 alert-error flex items-center">
                     <svg className="w-4 h-4 mr-2 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -462,7 +462,7 @@ export default function Profile() {
                 )}
 
                 {uploadSuccess && (
-                  <div className="mt-2 p-2.5 bg-green-50 border border-green-200 text-green-700 text-sm rounded-md flex items-center">
+                  <div className="mt-2 alert-success flex items-center">
                     <svg className="w-4 h-4 mr-2 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -475,7 +475,7 @@ export default function Profile() {
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleProfilePictureChange}
-                    className="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                    className="block text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                   />
                   {selectedFile && (
                     <div className="flex items-center gap-2">
@@ -483,7 +483,7 @@ export default function Profile() {
                         type="button"
                         onClick={handleProfilePictureUpload}
                         disabled={uploading}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition"
+                        className="btn-primary"
                       >
                         {uploading ? (
                           <>
@@ -501,7 +501,7 @@ export default function Profile() {
                         type="button"
                         onClick={handleCancelPreview}
                         disabled={uploading}
-                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition"
+                        className="btn-secondary"
                       >
                         Cancel
                       </button>
@@ -516,13 +516,13 @@ export default function Profile() {
                     <button
                       type="button"
                       onClick={() => setEditing(false)}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="btn-secondary"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="btn-primary"
                     >
                       Save Changes
                     </button>
@@ -531,7 +531,7 @@ export default function Profile() {
                   <button
                     type="button"
                     onClick={() => setEditing(true)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="btn-primary"
                   >
                     Edit Profile
                   </button>
@@ -543,12 +543,12 @@ export default function Profile() {
           {/* Badges section */}
           {user.badges && user.badges.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-lg font-semibold text-gray-900">Badges</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Badges</h2>
               <div className="flex flex-wrap gap-2 mt-2">
                 {user.badges.map((badge, index) => (
                   <span
                     key={index}
-                    className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm"
+                    className="badge-pill bg-amber-50 text-amber-800 border border-amber-200/70"
                   >
                     {badge}
                   </span>
