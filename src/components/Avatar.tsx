@@ -58,7 +58,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   if (src && !hasError) {
     return (
       <div
-        className={`relative rounded-full overflow-hidden shrink-0 border border-gray-200/80 bg-gray-100 ${sizeStyle} ${className}`}
+        className={`relative rounded-full overflow-hidden shrink-0 border border-slate-200/80 bg-slate-100 ${sizeStyle} ${className}`}
       >
         <Image
           src={src}

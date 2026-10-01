@@ -72,27 +72,21 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50/70 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Subtle decorative background blur */}
-      <div className="absolute top-1/4 -left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-72 h-72 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="max-w-md w-full space-y-6 bg-white p-8 sm:p-10 rounded-2xl shadow-card border border-slate-100 relative z-10">
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-sky-400 flex items-center justify-center text-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">TravelPlanner</span>
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="text-center mb-2">
+          <Link href="/" className="inline-flex items-center gap-2 mb-5 group">
+            <div className="brand-mark w-10 h-10 text-lg group-hover:bg-blue-700 transition-colors">✈</div>
+            <span className="text-xl font-bold tracking-tight text-slate-900">
+              Travel<span className="text-blue-600">Planner</span>
+            </span>
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Create your account
           </h1>
           <p className="mt-2 text-sm text-slate-500">
             Already have an account?{' '}
-            <Link href="/login" className="font-semibold text-primary hover:text-primary-dark transition-colors">
+            <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700 transition-colors">
               Sign in
             </Link>
           </p>
@@ -100,7 +94,7 @@ export default function Register() {
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="fullName" className="form-label">
               Full Name
             </label>
             <input
@@ -124,7 +118,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="email" className="form-label">
               Email Address
             </label>
             <input
@@ -148,7 +142,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="password" className="form-label">
               Password
             </label>
             <div className="relative">
@@ -193,7 +187,7 @@ export default function Register() {
           </div>
 
           {errors.submit && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex items-center gap-2" role="alert">
+            <div className="alert-error flex items-center gap-2" role="alert">
               <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -202,7 +196,7 @@ export default function Register() {
           )}
 
           {success && (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-xl flex items-center gap-2" role="alert">
+            <div className="alert-success flex items-center gap-2" role="alert">
               <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -214,7 +208,7 @@ export default function Register() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full py-2.5 flex items-center justify-center font-semibold text-sm shadow-md shadow-primary/20"
+              className="btn-primary w-full py-3"
             >
               {loading ? (
                 <div className="flex items-center gap-2">

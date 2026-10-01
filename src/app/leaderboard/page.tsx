@@ -41,7 +41,7 @@ export default function Leaderboard() {
   const topThree = users.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-slate-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="page-canvas py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200/80 mb-8 gap-4">
@@ -135,8 +135,8 @@ export default function Leaderboard() {
 
                 {/* 1st Place (Champion) */}
                 {topThree[0] && (
-                  <div className="bg-gradient-to-b from-amber-50/70 via-white to-white rounded-2xl border-2 border-amber-300/80 shadow-elevated p-6 sm:p-7 flex flex-col items-center text-center relative transform md:-translate-y-2 order-1 md:order-2">
-                    <div className="absolute -top-3.5 px-4 py-1 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 shadow-sm flex items-center space-x-1">
+                  <div className="bg-gradient-to-b from-amber-50 via-white to-white rounded-2xl border border-amber-200 shadow-elevated p-6 sm:p-7 flex flex-col items-center text-center relative md:-translate-y-2 order-1 md:order-2">
+                    <div className="absolute -top-3.5 px-4 py-1 rounded-full text-xs font-bold bg-amber-400 text-slate-900 shadow-xs flex items-center space-x-1">
                       <span>👑</span>
                       <span>1st Champion</span>
                     </div>

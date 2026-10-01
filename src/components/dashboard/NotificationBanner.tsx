@@ -39,7 +39,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
         <Link
           href={`/chat/${messageToast.senderId}`}
           onClick={onDismissToast}
-          className="bg-white text-gray-900 p-3.5 rounded-2xl shadow-xl border border-gray-200/90 flex items-center space-x-3 hover:bg-gray-50/90 transition-all hover:scale-[1.02] cursor-pointer group"
+          className="bg-white text-slate-900 p-3.5 rounded-2xl shadow-elevated border border-slate-200 flex items-center space-x-3 hover:bg-slate-50 transition-colors cursor-pointer group"
         >
           <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,12 +53,12 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
           </div>
           <div className="flex-1 min-w-0 pr-1">
             <div className="flex items-center justify-between">
-              <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors">
+              <h4 className="font-bold text-xs text-slate-900 truncate group-hover:text-blue-600 transition-colors">
                 {messageToast.senderName}
               </h4>
-              <span className="text-[10px] text-gray-400 font-medium">just now</span>
+              <span className="text-[10px] text-slate-400 font-medium">just now</span>
             </div>
-            <p className="text-xs text-gray-500 truncate mt-0.5">{messageToast.content}</p>
+            <p className="text-xs text-slate-500 truncate mt-0.5">{messageToast.content}</p>
           </div>
           <button
             type="button"
@@ -67,7 +67,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
               e.stopPropagation();
               onDismissToast?.();
             }}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-md"
+            className="text-gray-400 hover:text-slate-600 p-1 rounded-md"
             title="Dismiss"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,7 +79,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
 
       {/* Gamification alerts */}
       {levelUp && (
-        <div className="bg-amber-500 text-white p-4 rounded-xl shadow-xl flex items-center space-x-3 border border-amber-400 animate-bounce">
+        <div className="bg-amber-500 text-white p-4 rounded-xl shadow-elevated flex items-center space-x-3 border border-amber-400 animate-fadeIn">
           <div className="text-2xl">⚡</div>
           <div>
             <h4 className="font-bold text-sm">Level Up!</h4>
@@ -93,12 +93,12 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
       {newBadges?.map((badge, idx) => (
         <div
           key={idx}
-          className="bg-indigo-600 text-white p-4 rounded-xl shadow-xl flex items-center space-x-3 border border-indigo-500 animate-bounce"
+          className="bg-blue-600 text-white p-4 rounded-xl shadow-elevated flex items-center space-x-3 border border-blue-500 animate-fadeIn"
         >
           <div className="text-2xl">🏆</div>
           <div>
             <h4 className="font-bold text-sm">New Badge Unlocked!</h4>
-            <p className="text-xs text-indigo-100">You earned the &quot;{badge}&quot; badge!</p>
+            <p className="text-xs text-blue-100">You earned the &quot;{badge}&quot; badge!</p>
           </div>
         </div>
       ))}
