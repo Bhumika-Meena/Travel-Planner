@@ -122,28 +122,28 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 via-white to-blue-50/20 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-elevated border border-slate-100/90 p-8 sm:p-9">
+    <div className="auth-shell">
+      <div className="auth-card">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 group mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform">
+          <Link href="/" className="inline-flex items-center space-x-2 group mb-5">
+            <div className="brand-mark w-10 h-10 text-lg group-hover:bg-blue-700 transition-colors">
               ✈
             </div>
-            <span className="text-2xl font-black tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+            <span className="text-xl font-bold tracking-tight text-slate-900">
               Travel<span className="text-blue-600">Planner</span>
             </span>
           </Link>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Welcome back, Explorer!
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Welcome back
           </h2>
-          <p className="mt-1.5 text-xs text-slate-500">
-            Sign in to access your planned itineraries and rankings.
+          <p className="mt-1.5 text-sm text-slate-500">
+            Sign in to your itineraries, messages, and rankings.
           </p>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            <label htmlFor="email" className="form-label">
               Email Address
             </label>
             <input
@@ -166,7 +166,7 @@ export default function Login() {
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+              <label htmlFor="password" className="form-label mb-0">
                 Password
               </label>
               <Link href="/forgot-password" className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline">
@@ -213,19 +213,19 @@ export default function Login() {
           </div>
 
           {errors.submit && (
-            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+            <div className="alert-error">
               {errors.submit}
             </div>
           )}
 
           {showVerificationMessage && (
-            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+            <div className="alert-warn">
               Please verify your email address. A verification code has been sent to your email.
             </div>
           )}
 
           {success && (
-            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+            <div className="alert-success">
               Login successful! Redirecting to dashboard...
             </div>
           )}
@@ -233,7 +233,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn-primary py-3 rounded-xl text-sm font-bold shadow-md shadow-blue-500/15"
+            className="w-full btn-primary py-3"
           >
             {loading ? (
               <div className="flex items-center space-x-2">
@@ -245,7 +245,7 @@ export default function Login() {
             )}
           </button>
 
-          <p className="text-center text-xs text-slate-500 pt-2">
+          <p className="text-center text-sm text-slate-500 pt-2">
             Don&apos;t have an account?{' '}
             <Link href="/register" className="font-bold text-blue-600 hover:text-blue-700 hover:underline">
               Create one free
