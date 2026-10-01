@@ -92,9 +92,9 @@ export default function ChatInbox() {
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
+    <div className="page-canvas">
       {/* Top Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-xs">
+      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link
@@ -109,7 +109,7 @@ export default function ChatInbox() {
             <div className="flex items-center space-x-2">
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Messages</h1>
               {totalUnread > 0 && (
-                <span className="bg-primary text-white text-xs px-2.5 py-0.5 rounded-full font-semibold shadow-xs">
+                <span className="bg-blue-600 text-white text-xs px-2.5 py-0.5 rounded-full font-semibold">
                   {totalUnread} new
                 </span>
               )}
@@ -118,7 +118,7 @@ export default function ChatInbox() {
 
           <Link
             href="/leaderboard"
-            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-primary hover:text-primary-dark bg-primary/10 hover:bg-primary/15 px-3.5 py-2 rounded-xl transition-all"
+            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl transition-all"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -179,7 +179,7 @@ export default function ChatInbox() {
               <Link
                 key={conv.partnerId}
                 href={`/chat/${conv.partnerId}`}
-                className="flex items-center justify-between p-4.5 hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors group cursor-pointer"
               >
                 <div className="flex items-center space-x-3.5 min-w-0 flex-1 pr-4">
                   <div className="relative">
@@ -190,13 +190,13 @@ export default function ChatInbox() {
                       className="border border-slate-100 shadow-xs"
                     />
                     {conv.unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-primary border-2 border-white rounded-full ring-2 ring-primary/20" />
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full" />
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-2">
-                      <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-primary transition-colors">
+                        <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
                         {conv.partnerName}
                       </p>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
@@ -214,7 +214,7 @@ export default function ChatInbox() {
                     {formatChatTime(conv.timestamp)}
                   </span>
                   {conv.unreadCount > 0 && (
-                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-primary rounded-full shadow-xs">
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-blue-600 rounded-full">
                       {conv.unreadCount}
                     </span>
                   )}
@@ -234,7 +234,7 @@ export default function ChatInbox() {
         {/* Empty State (No Conversations Yet) */}
         {!loading && conversations.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-200 p-10 sm:p-12 text-center shadow-card max-w-lg mx-auto mt-6">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 shadow-xs">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
@@ -245,7 +245,7 @@ export default function ChatInbox() {
             </p>
             <Link
               href="/leaderboard"
-              className="btn-primary inline-flex items-center space-x-2 px-5 py-2.5 text-sm shadow-md shadow-primary/20"
+              className="btn-primary inline-flex items-center space-x-2 px-5 py-2.5 text-sm"
             >
               <span>Explore Travelers on Leaderboard</span>
               <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

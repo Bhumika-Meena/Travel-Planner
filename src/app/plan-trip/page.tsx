@@ -135,7 +135,7 @@ export default function PlanTrip() {
   const totalPointsPlanned = selectedPlaces.reduce((sum, p) => sum + (p.points || 0), 0);
 
   return (
-    <div className="min-h-screen bg-slate-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="page-canvas py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header navigation bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200/80 mb-8 gap-4">
@@ -164,7 +164,7 @@ export default function PlanTrip() {
         </div>
 
         {/* Form Container */}
-        <div className="bg-white rounded-2xl shadow-card border border-slate-100/90 p-6 sm:p-8 mb-8">
+        <div className="surface p-6 sm:p-8 mb-8">
           <div className="flex items-center space-x-2 pb-4 mb-6 border-b border-slate-100">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
               1
@@ -175,7 +175,7 @@ export default function PlanTrip() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div>
-                <label htmlFor="destination" className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label htmlFor="destination" className="form-label">
                   Destination City / Country
                 </label>
                 <div className="relative">
@@ -199,7 +199,7 @@ export default function PlanTrip() {
               </div>
 
               <div>
-                <label htmlFor="startDate" className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label htmlFor="startDate" className="form-label">
                   Departure Date
                 </label>
                 <input
@@ -215,7 +215,7 @@ export default function PlanTrip() {
               </div>
 
               <div>
-                <label htmlFor="endDate" className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label htmlFor="endDate" className="form-label">
                   Return Date
                 </label>
                 <input
@@ -232,7 +232,7 @@ export default function PlanTrip() {
             </div>
 
             {error && (
-              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center space-x-2">
+              <div className="alert-error flex items-center space-x-2">
                 <svg className="w-4 h-4 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
@@ -269,7 +269,7 @@ export default function PlanTrip() {
         {/* 2-Column Responsive Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* AI Suggestions Column */}
-          <div className="bg-white rounded-2xl shadow-card border border-slate-100/90 p-6 sm:p-7 flex flex-col justify-between">
+          <div className="surface p-6 sm:p-7 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-100">
                 <div className="flex items-center space-x-2">
@@ -326,7 +326,7 @@ export default function PlanTrip() {
                 ))}
 
                 {suggestions.length === 0 && !fetchingSuggestions && (
-                  <div className="text-center py-12 px-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                  <div className="empty-state">
                     <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
                       📍
                     </div>
@@ -341,7 +341,7 @@ export default function PlanTrip() {
           </div>
 
           {/* Selected Places Column */}
-          <div className="bg-white rounded-2xl shadow-card border border-slate-100/90 p-6 sm:p-7 flex flex-col justify-between">
+          <div className="surface p-6 sm:p-7 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-100">
                 <div className="flex items-center space-x-2">
@@ -394,7 +394,7 @@ export default function PlanTrip() {
                 ))}
 
                 {selectedPlaces.length === 0 && (
-                  <div className="text-center py-12 px-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                  <div className="empty-state">
                     <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
                       🗺️
                     </div>

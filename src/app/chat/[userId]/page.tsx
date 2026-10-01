@@ -180,7 +180,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
   const isSendDisabled = !newMessage.trim();
 
   return (
-    <div className="min-h-screen bg-slate-50/50 flex flex-col">
+    <div className="page-canvas flex flex-col">
       <div className="w-full max-w-3xl mx-auto flex flex-col flex-1 bg-white sm:my-6 sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-card overflow-hidden">
         {/* Chat Room Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-3.5 bg-white z-10 shadow-xs">
@@ -209,7 +209,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
                 <div>
                   <Link
                     href={`/profile/${otherUser._id}`}
-                    className="font-semibold text-slate-900 hover:text-primary transition-colors text-sm sm:text-base flex items-center space-x-1.5"
+                    className="font-semibold text-slate-900 hover:text-blue-600 transition-colors text-sm sm:text-base flex items-center space-x-1.5"
                   >
                     <span>{otherUser.fullName}</span>
                     {otherUser.level && (
@@ -230,7 +230,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
           {otherUser && (
             <Link
               href={`/profile/${otherUser._id}`}
-              className="text-xs font-semibold text-primary hover:text-primary-dark bg-primary/10 hover:bg-primary/15 px-3.5 py-1.5 rounded-xl transition-all"
+              className="text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3.5 py-1.5 rounded-xl transition-all"
             >
               View Profile
             </Link>
@@ -246,7 +246,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
         >
           {loadingHistory && (
             <div className="flex items-center justify-center h-48">
-              <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="w-7 h-7 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
@@ -288,7 +288,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
                   <div
                     className={`px-4 py-2.5 rounded-2xl break-words text-sm shadow-xs ${
                       isMe
-                        ? "bg-primary text-white rounded-br-xs shadow-primary/10"
+                        ? "bg-blue-600 text-white rounded-br-sm"
                         : "bg-white text-slate-900 border border-slate-200/90 rounded-bl-xs shadow-xs"
                     }`}
                   >
@@ -310,7 +310,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
           <div className="relative flex justify-center">
             <button
               onClick={() => scrollToBottom(true)}
-              className="absolute -top-12 z-20 inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-full shadow-lg hover:bg-black transition-all animate-bounce"
+              className="absolute -top-12 z-20 inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-full shadow-lg hover:bg-slate-800 transition-all animate-fadeIn"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
@@ -322,7 +322,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
 
         {/* Message Input Box */}
         <form onSubmit={handleSend} className="border-t border-slate-200 p-3 sm:p-4 bg-white">
-          <div className="flex items-end space-x-2 bg-slate-50 border border-slate-300 rounded-2xl p-1.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 focus-within:bg-white transition-all">
+          <div className="flex items-end space-x-2 bg-slate-50 border border-slate-200 rounded-2xl p-1.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 focus-within:bg-white transition-all">
             <textarea
               rows={1}
               className="flex-1 bg-transparent px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 resize-none focus:outline-none max-h-32"

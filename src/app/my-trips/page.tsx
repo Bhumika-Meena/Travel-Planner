@@ -65,7 +65,7 @@ export default function MyTrips() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="page-canvas py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200/80 gap-4">
