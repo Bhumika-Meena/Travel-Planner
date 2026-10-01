@@ -194,7 +194,7 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="page-canvas py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         {/* Navigation Bar */}
         <div className="flex items-center justify-between pb-6 border-b border-slate-200/80 mb-8">
@@ -229,7 +229,7 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-card border border-slate-100/90 overflow-hidden">
           {/* Header Banner */}
-          <div className="p-6 sm:p-8 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+          <div className="p-6 sm:p-8 bg-blue-600 text-white flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
             <Avatar
               src={user.profilePicture}
               name={user.fullName}
