@@ -63,16 +63,15 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
   ];
 
   return (
-    <nav className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 shadow-xs">
+    <nav className="nav-blur">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            {/* Logo */}
             <Link href="/dashboard" className="flex items-center space-x-2 group">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
+              <div className="brand-mark w-8 h-8 group-hover:bg-blue-700 transition-colors">
                 ✈
               </div>
-              <span className="text-lg font-black tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+              <span className="text-lg font-bold tracking-tight text-slate-900">
                 Travel<span className="text-blue-600">Planner</span>
               </span>
             </Link>
