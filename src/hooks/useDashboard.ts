@@ -99,24 +99,26 @@ export function useDashboard() {
         const tokenRes = await fetch('/api/auth/chat-token');
         if (tokenRes.ok) {
           const data = await tokenRes.json();
-          token = data.token || '';
+          token = data.token || data.data?.token || '';
         }
       } catch (err) {
         console.warn('Could not retrieve chat auth token:', err);
       }
 
-      if (!isMounted) return;
+      if (!isMounted || !token) return;
 
       socket = io(SOCKET_URL, {
         auth: { token },
         withCredentials: true,
         reconnectionAttempts: 4,
         timeout: 6000,
-        transports: ['websocket', 'polling']
+        transports: ['polling', 'websocket']
       });
       socketRef.current = socket;
 
-      socket.emit('joinRoom', { userId: currentUserId, otherUserId: null });
+      socket.on('connect', () => {
+        socket?.emit('joinRoom', { userId: currentUserId, otherUserId: null });
+      });
 
       socket.on('receiveMessage', (msg: any) => {
         if (msg.receiverId === currentUserId && msg.senderId !== currentUserId) {

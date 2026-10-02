@@ -51,19 +51,47 @@ const cors = require('cors');
 const { jwtVerify } = require('jose');
 const { MongoClient } = require('mongodb');
 
-const FRONTEND_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 const MONGODB_DB = process.env.MONGODB_DB || 'travel_planner';
+
+// Allowed frontend origins (normalized without trailing slashes)
+const configuredOrigins = (process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(url => url.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+const isOriginAllowed = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  const allowed =
+    configuredOrigins.includes(cleanOrigin) ||
+    /https:\/\/[a-zA-Z0-9_.-]+\.vercel\.app$/.test(cleanOrigin) ||
+    /^http:\/\/localhost:\d+$/.test(cleanOrigin) ||
+    /^http:\/\/127\.0\.0\.1:\d+$/.test(cleanOrigin);
+
+  if (allowed) {
+    return callback(null, true);
+  }
+  return callback(null, false);
+};
 
 const app = express();
 app.use(cors({ 
-  origin: FRONTEND_ORIGIN,
+  origin: isOriginAllowed,
   credentials: true 
 }));
+
+// Basic health check routes for deployment monitoring (Render)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+app.get('/', (req, res) => {
+  res.status(200).send('Socket.IO Chat Server is running');
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_ORIGIN,
+    origin: isOriginAllowed,
     methods: ['GET', 'POST'],
     credentials: true
   }

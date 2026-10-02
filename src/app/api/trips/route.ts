@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       startDate,
       endDate,
       totalPoints,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
       places: sanitizedPlaces,
       status: 'current' // Set initial status as current
     });

@@ -102,7 +102,7 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
         const tokenRes = await fetch('/api/auth/chat-token');
         if (tokenRes.ok) {
           const data = await tokenRes.json();
-          token = data.token || '';
+          token = data.token || data.data?.token || '';
         }
       } catch (err) {
         console.warn('Could not retrieve chat auth token:', err);
@@ -110,14 +110,28 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
 
       if (!isMounted) return;
 
+      if (!token) {
+        setLoadingHistory(false);
+        return;
+      }
+
       socket = io(SOCKET_URL, {
         auth: { token },
         withCredentials: true,
-        transports: ['websocket', 'polling']
+        transports: ['polling', 'websocket'],
+        reconnectionAttempts: 5,
+        timeout: 10000,
       });
       socketRef.current = socket;
 
-      socket.emit('joinRoom', { userId: currentUser!._id, otherUserId: userId });
+      socket.on('connect', () => {
+        socket?.emit('joinRoom', { userId: currentUser!._id, otherUserId: userId });
+      });
+
+      socket.on('connect_error', (err) => {
+        console.warn('Chat socket connection error:', err.message);
+        setLoadingHistory(false);
+      });
 
       socket.on('chatHistory', (history: Message[]) => {
         setMessages(history || []);
@@ -155,11 +169,12 @@ export default function ChatRoom({ params }: { params: { userId: string } }) {
   const handleSend = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const content = newMessage.trim();
-    if (!content || !currentUser || !otherUser) return;
+    const receiverId = otherUser?._id || (userId as string);
+    if (!content || !currentUser || !receiverId) return;
 
     const msg: Message = {
       senderId: currentUser._id,
-      receiverId: otherUser._id,
+      receiverId,
       content,
       timestamp: new Date().toISOString(),
       senderName: currentUser.fullName,

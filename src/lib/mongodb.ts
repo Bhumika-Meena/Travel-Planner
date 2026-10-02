@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb';
-import mongoose from 'mongoose';
+import type { Db, Collection } from 'mongodb';
 import dns from 'dns';
+import type { UserDocument, TripDocument, MessageDocument, OtpDocument } from '@/models';
 
 // Fix for Node.js DNS resolution timeout on Windows/local networks querying MongoDB SRV TXT records
 try {
@@ -77,6 +78,7 @@ export async function ensureDatabaseIndexes(db: any) {
       db.collection('users').createIndex({ email: 1 }, { unique: true, sparse: true }),
       db.collection('users').createIndex({ isVerified: 1, points: -1 }),
       db.collection('users').createIndex({ points: -1 }),
+      db.collection('users').createIndex({ resetToken: 1 }, { sparse: true }),
       db.collection('trips').createIndex({ userId: 1, status: 1, createdAt: -1 }),
       db.collection('otps').createIndex({ email: 1 }),
       db.collection('otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
@@ -97,33 +99,27 @@ export async function connectToDatabase() {
   return { client, db };
 } 
 
-type MongooseCache = {
-  conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
-};
+export const COLLECTIONS = {
+  USERS: 'users',
+  TRIPS: 'trips',
+  MESSAGES: 'messages',
+  OTPS: 'otps',
+} as const;
 
-const globalWithMongoose = global as typeof globalThis & {
-  _mongoose?: MongooseCache;
-};
-
-const mongooseCache: MongooseCache =
-  globalWithMongoose._mongoose ?? { conn: null, promise: null };
-
-globalWithMongoose._mongoose = mongooseCache;
-
-export default async function connectDB() {
-  if (mongooseCache.conn) return mongooseCache.conn;
-
-  if (!mongooseCache.promise) {
-    mongooseCache.promise = mongoose
-      .connect(uri, {
-        dbName: defaultDb,
-        serverSelectionTimeoutMS: 10000,
-        connectTimeoutMS: 10000,
-      })
-      .then((m) => m);
-  }
-
-  mongooseCache.conn = await mongooseCache.promise;
-  return mongooseCache.conn;
+export function getUsersCollection(db: Db): Collection<UserDocument> {
+  return db.collection<UserDocument>(COLLECTIONS.USERS);
 }
+
+export function getTripsCollection(db: Db): Collection<TripDocument> {
+  return db.collection<TripDocument>(COLLECTIONS.TRIPS);
+}
+
+export function getMessagesCollection(db: Db): Collection<MessageDocument> {
+  return db.collection<MessageDocument>(COLLECTIONS.MESSAGES);
+}
+
+export function getOtpsCollection(db: Db): Collection<OtpDocument> {
+  return db.collection<OtpDocument>(COLLECTIONS.OTPS);
+}
+
+export default connectToDatabase;
