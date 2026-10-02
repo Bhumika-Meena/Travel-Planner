@@ -1,5 +1,4 @@
-import { SignJWT } from 'jose/jwt/sign';
-import { jwtVerify } from 'jose/jwt/verify';
+import { SignJWT, jwtVerify } from 'jose';
 import { NextRequest } from 'next/server';
 
 export interface UserSessionPayload {

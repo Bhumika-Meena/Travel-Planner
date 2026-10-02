@@ -37,36 +37,50 @@ export default function PlanTrip() {
     }
   }, [user, authLoading, router]);
 
-  // Fetch suggestions when form data changes
+  // Fetch suggestions when trip destination and dates are provided
   useEffect(() => {
-    if (formData.destination && formData.startDate && formData.endDate) {
-      fetchSuggestions();
+    if (!formData.destination || !formData.startDate || !formData.endDate) {
+      return;
     }
-  }, [formData]);
 
-  const fetchSuggestions = async () => {
-    try {
-      setFetchingSuggestions(true);
-      const response = await fetch('/api/trips/suggestions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+    let isMounted = true;
+    const fetchSuggestions = async () => {
+      try {
+        setFetchingSuggestions(true);
+        const response = await fetch('/api/trips/suggestions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            destination: formData.destination,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch suggestions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch suggestions');
+        }
+
+        const data = await response.json();
+        if (isMounted) {
+          setSuggestions(data.suggestions || []);
+        }
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      } finally {
+        if (isMounted) {
+          setFetchingSuggestions(false);
+        }
       }
+    };
 
-      const data = await response.json();
-      setSuggestions(data.suggestions || []);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    } finally {
-      setFetchingSuggestions(false);
-    }
-  };
+    fetchSuggestions();
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.destination, formData.startDate, formData.endDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

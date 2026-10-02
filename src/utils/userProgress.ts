@@ -1,6 +1,7 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { calculateLevel, computeBadges, getLevelProgress, BADGES } from '@/lib/gamification';
+import logger from '@/lib/logger';
 
 export { calculateLevel, getLevelProgress, computeBadges, BADGES };
 export type { BadgeDefinition } from '@/lib/gamification';
@@ -54,7 +55,7 @@ export async function updateUserProgress(
 
     return null;
   } catch (error) {
-    console.error('Error updating user gamification progress:', error);
+    logger.error({ err: error, userId }, 'Error updating user gamification progress');
     return null;
   }
 }

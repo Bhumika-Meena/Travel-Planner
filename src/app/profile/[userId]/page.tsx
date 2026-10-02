@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -48,18 +48,7 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!currentUser) {
-      router.push('/login');
-      return;
-    }
-
-    setIsOwnProfile(currentUser._id === userId);
-    fetchUserProfile();
-  }, [userId, currentUser, authLoading, router]);
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       const response = await fetch(`/api/users/${userId}`);
       if (!response.ok) {
@@ -77,7 +66,18 @@ export default function UserProfilePage({ params }: UserProfilePageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+
+    setIsOwnProfile(currentUser._id === userId);
+    fetchUserProfile();
+  }, [userId, currentUser, authLoading, router, fetchUserProfile]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
