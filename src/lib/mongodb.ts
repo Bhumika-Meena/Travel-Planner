@@ -1,5 +1,7 @@
 import { MongoClient } from 'mongodb';
+import type { Db, Collection } from 'mongodb';
 import dns from 'dns';
+import type { UserDocument, TripDocument, MessageDocument, OtpDocument } from '@/models';
 
 // Fix for Node.js DNS resolution timeout on Windows/local networks querying MongoDB SRV TXT records
 try {
@@ -96,5 +98,28 @@ export async function connectToDatabase() {
   }
   return { client, db };
 } 
+
+export const COLLECTIONS = {
+  USERS: 'users',
+  TRIPS: 'trips',
+  MESSAGES: 'messages',
+  OTPS: 'otps',
+} as const;
+
+export function getUsersCollection(db: Db): Collection<UserDocument> {
+  return db.collection<UserDocument>(COLLECTIONS.USERS);
+}
+
+export function getTripsCollection(db: Db): Collection<TripDocument> {
+  return db.collection<TripDocument>(COLLECTIONS.TRIPS);
+}
+
+export function getMessagesCollection(db: Db): Collection<MessageDocument> {
+  return db.collection<MessageDocument>(COLLECTIONS.MESSAGES);
+}
+
+export function getOtpsCollection(db: Db): Collection<OtpDocument> {
+  return db.collection<OtpDocument>(COLLECTIONS.OTPS);
+}
 
 export default connectToDatabase;
