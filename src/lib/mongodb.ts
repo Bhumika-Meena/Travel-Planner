@@ -76,6 +76,7 @@ export async function ensureDatabaseIndexes(db: any) {
       db.collection('users').createIndex({ email: 1 }, { unique: true, sparse: true }),
       db.collection('users').createIndex({ isVerified: 1, points: -1 }),
       db.collection('users').createIndex({ points: -1 }),
+      db.collection('users').createIndex({ resetToken: 1 }, { sparse: true }),
       db.collection('trips').createIndex({ userId: 1, status: 1, createdAt: -1 }),
       db.collection('otps').createIndex({ email: 1 }),
       db.collection('otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
