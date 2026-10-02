@@ -1,5 +1,4 @@
 import { MongoClient } from 'mongodb';
-import mongoose from 'mongoose';
 import dns from 'dns';
 
 // Fix for Node.js DNS resolution timeout on Windows/local networks querying MongoDB SRV TXT records
@@ -97,33 +96,4 @@ export async function connectToDatabase() {
   return { client, db };
 } 
 
-type MongooseCache = {
-  conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
-};
-
-const globalWithMongoose = global as typeof globalThis & {
-  _mongoose?: MongooseCache;
-};
-
-const mongooseCache: MongooseCache =
-  globalWithMongoose._mongoose ?? { conn: null, promise: null };
-
-globalWithMongoose._mongoose = mongooseCache;
-
-export default async function connectDB() {
-  if (mongooseCache.conn) return mongooseCache.conn;
-
-  if (!mongooseCache.promise) {
-    mongooseCache.promise = mongoose
-      .connect(uri, {
-        dbName: defaultDb,
-        serverSelectionTimeoutMS: 10000,
-        connectTimeoutMS: 10000,
-      })
-      .then((m) => m);
-  }
-
-  mongooseCache.conn = await mongooseCache.promise;
-  return mongooseCache.conn;
-}
+export default connectToDatabase;
