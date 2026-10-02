@@ -16,80 +16,121 @@ export async function GET(request: Request) {
     const userId = session.userId;
     const { db } = await connectToDatabase();
 
-    // Find all messages where the current user is sender or receiver
-    const messages = await db
+    // Use MongoDB aggregation to group by conversation partner directly on the database engine
+    // rather than loading unbounded historical messages into Node.js heap memory
+    const conversationsRaw = await db
       .collection('messages')
-      .find({
-        $or: [{ senderId: userId }, { receiverId: userId }]
-      })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    // Group messages by the other participant
-    const conversationMap = new Map<string, {
-      partnerId: string;
-      lastMessage: string;
-      timestamp: string;
-      unreadCount: number;
-    }>();
-
-    for (const msg of messages) {
-      const partnerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
-      if (!partnerId) continue;
-
-      if (!conversationMap.has(partnerId)) {
-        conversationMap.set(partnerId, {
-          partnerId,
-          lastMessage: msg.content || '',
-          timestamp: msg.timestamp || msg.createdAt?.toISOString?.() || new Date().toISOString(),
-          unreadCount: (msg.receiverId === userId && !msg.isRead) ? 1 : 0
-        });
-      } else {
-        if (msg.receiverId === userId && !msg.isRead) {
-          const conv = conversationMap.get(partnerId)!;
-          conv.unreadCount += 1;
+      .aggregate<{
+        _id: string;
+        lastMessage: string;
+        timestamp: Date | string;
+        unreadCount: number;
+      }>([
+        {
+          $match: {
+            $or: [{ senderId: userId }, { receiverId: userId }]
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        },
+        {
+          $project: {
+            content: 1,
+            createdAt: 1,
+            timestamp: 1,
+            isRead: 1,
+            receiverId: 1,
+            senderId: 1,
+            partnerId: {
+              $cond: {
+                if: { $eq: ['$senderId', userId] },
+                then: '$receiverId',
+                else: '$senderId'
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: '$partnerId',
+            lastMessage: { $first: '$content' },
+            timestamp: {
+              $first: {
+                $ifNull: ['$timestamp', '$createdAt']
+              }
+            },
+            unreadCount: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$receiverId', userId] },
+                      { $ne: ['$isRead', true] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        },
+        {
+          $sort: { timestamp: -1 }
         }
-      }
-    }
+      ])
+      .toArray();
 
     // Fetch user details for all conversation partners
-    const partnerIds = Array.from(conversationMap.keys())
-      .filter(id => ObjectId.isValid(id))
+    const partnerIds = conversationsRaw
+      .map(c => c._id)
+      .filter(id => id && ObjectId.isValid(id))
       .map(id => new ObjectId(id));
 
-    const partners = await db
-      .collection('users')
-      .find(
-        { _id: { $in: partnerIds } },
-        {
-          projection: {
-            _id: 1,
-            fullName: 1,
-            profilePicture: 1,
-            level: 1,
-            points: 1
-          }
-        }
-      )
-      .toArray();
+    const partners = partnerIds.length > 0
+      ? await db
+          .collection('users')
+          .find(
+            { _id: { $in: partnerIds } },
+            {
+              projection: {
+                _id: 1,
+                fullName: 1,
+                profilePicture: 1,
+                level: 1,
+                points: 1
+              }
+            }
+          )
+          .toArray()
+      : [];
 
     const partnerInfoMap = new Map(
       partners.map(p => [p._id.toString(), p])
     );
 
-    const conversations = Array.from(conversationMap.values()).map(conv => {
-      const user = partnerInfoMap.get(conv.partnerId);
-      return {
-        partnerId: conv.partnerId,
-        partnerName: user?.fullName || 'Traveler',
-        partnerAvatar: user?.profilePicture || null,
-        partnerLevel: user?.level || 1,
-        partnerPoints: user?.points || 0,
-        lastMessage: conv.lastMessage,
-        timestamp: conv.timestamp,
-        unreadCount: conv.unreadCount
-      };
-    });
+    const conversations = conversationsRaw
+      .filter(conv => conv._id)
+      .map(conv => {
+        const user = partnerInfoMap.get(conv._id);
+        const rawTime = conv.timestamp;
+        const formattedTimestamp =
+          rawTime instanceof Date
+            ? rawTime.toISOString()
+            : (rawTime ? String(rawTime) : new Date().toISOString());
+
+        return {
+          partnerId: conv._id,
+          partnerName: user?.fullName || 'Traveler',
+          partnerAvatar: user?.profilePicture || null,
+          partnerLevel: user?.level || 1,
+          partnerPoints: user?.points || 0,
+          lastMessage: conv.lastMessage || '',
+          timestamp: formattedTimestamp,
+          unreadCount: conv.unreadCount || 0
+        };
+      });
 
     return apiSuccess({ conversations }, 200);
   } catch (error) {
