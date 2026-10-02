@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -72,23 +72,7 @@ export default function Profile() {
     };
   }, [previewUrl]);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!authUser) {
-      router.push('/login');
-      return;
-    }
-
-    setFormData({
-      fullName: authUser.fullName,
-      email: authUser.email,
-      bio: authUser.bio || '',
-      isTripPublic: false
-    });
-    fetchUserData(authUser._id);
-  }, [authUser, authLoading, router]);
-
-  const fetchUserData = async (id?: string) => {
+  const fetchUserData = useCallback(async (id?: string) => {
     try {
       const targetId = id || user?._id || authUser?._id;
       if (!targetId) return;
@@ -100,7 +84,6 @@ export default function Profile() {
       }
 
       const userData = await response.json();
-      console.log('Fetched user data:', userData);
       
       setUser(userData);
       setFormData({
@@ -115,7 +98,23 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?._id, authUser?._id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!authUser) {
+      router.push('/login');
+      return;
+    }
+
+    setFormData({
+      fullName: authUser.fullName,
+      email: authUser.email,
+      bio: authUser.bio || '',
+      isTripPublic: false
+    });
+    fetchUserData(authUser._id);
+  }, [authUser, authLoading, router, fetchUserData]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

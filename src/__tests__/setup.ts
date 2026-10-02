@@ -8,4 +8,4 @@
 process.env.MONGODB_URI = 'mongodb://localhost:27017/test';
 process.env.MONGODB_DB = 'test';
 process.env.JWT_SECRET = 'test-secret-that-is-definitely-32-chars-long!!';
-process.env.NODE_ENV = 'test';
+(process.env as Record<string, string | undefined>).NODE_ENV = 'test';

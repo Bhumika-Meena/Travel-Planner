@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -31,16 +31,7 @@ export default function MyTrips() {
   const [expandedTrip, setExpandedTrip] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    fetchTrips();
-  }, [user, authLoading, router]);
-
-  const fetchTrips = async () => {
+  const fetchTrips = useCallback(async () => {
     try {
       const tripsResponse = await fetch('/api/trips');
 
@@ -52,13 +43,22 @@ export default function MyTrips() {
       setTrips(data.pastTrips || []);
     } catch (err: any) {
       setError(err.message);
-      if (err.message.includes('Failed to fetch trips')) {
+      if (err.message && typeof err.message === 'string' && err.message.includes('Failed to fetch trips')) {
         router.push('/login');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    fetchTrips();
+  }, [user, authLoading, router, fetchTrips]);
 
   const toggleTripDetails = (tripId: string) => {
     setExpandedTrip(expandedTrip === tripId ? null : tripId);

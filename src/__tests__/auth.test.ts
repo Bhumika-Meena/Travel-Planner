@@ -6,7 +6,7 @@
 
 // Inject a valid test secret BEFORE importing auth (module-level env check runs at import time)
 process.env.JWT_SECRET = 'test-secret-that-is-definitely-32-chars-long!!';
-process.env.NODE_ENV = 'test';
+(process.env as Record<string, string | undefined>).NODE_ENV = 'test';
 
 import { signAuthToken, verifyAuthToken, getAuthSession, UserSessionPayload } from '@/lib/auth';
 
