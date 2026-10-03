@@ -101,10 +101,16 @@ describe('getLevelProgress', () => {
 // ─────────────────────────── computeBadges ──────────────────────────────────
 
 describe('computeBadges', () => {
-  it('awards first_step badge at 2 points', () => {
-    const { allBadges, newBadges } = computeBadges(2, 0, []);
+  it('awards first_step badge at 10 points', () => {
+    const { allBadges, newBadges } = computeBadges(10, 0, []);
     expect(newBadges).toContain('First Step');
     expect(allBadges).toContain('First Step');
+  });
+
+  it('does not award first_step badge below 10 points', () => {
+    const { allBadges, newBadges } = computeBadges(9, 0, []);
+    expect(newBadges).not.toContain('First Step');
+    expect(allBadges).not.toContain('First Step');
   });
 
   it('does not re-award a badge the user already has', () => {

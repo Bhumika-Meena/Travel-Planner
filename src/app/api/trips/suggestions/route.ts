@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { getAuthSession } from '@/lib/auth';
 import { AiTripRequestSchema, validationError } from '@/lib/schemas';
 import { apiSuccess, apiError } from '@/lib/api-response';
+import { calculateTaskReward } from '@/lib/gamification';
 import logger from '@/lib/logger';
 
 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
@@ -146,13 +147,18 @@ export async function POST(request: Request) {
     ];
     }
 
-    // Ensure all suggestions have the required fields
-    suggestions = suggestions.map((place: any) => ({
-      name: place.name || 'Unknown Place',
-      description: place.description || 'No description available',
-      points: Math.min(Math.max(place.points || 2, 1), 5),
-      isSelected: true
-    }));
+    // Ensure all suggestions have the required fields and server-authoritative points (10/12/15)
+    suggestions = suggestions.map((place: any) => {
+      const name = typeof place.name === 'string' ? place.name.trim() : 'Unknown Place';
+      const description = typeof place.description === 'string' ? place.description.trim() : '';
+      const points = calculateTaskReward({ name, description });
+      return {
+        name: name || 'Unknown Place',
+        description: description || 'No description available',
+        points,
+        isSelected: true,
+      };
+    });
 
     return apiSuccess({ suggestions }, 200);
   } catch (error) {

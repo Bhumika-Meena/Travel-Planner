@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { GoogleMapsButton } from '@/components/GoogleMapsButton';
+import { GamificationRulebook } from '@/components/GamificationRulebook';
+import { calculateTaskReward } from '@/lib/gamification';
 
 interface Place {
   name: string;
@@ -65,7 +67,12 @@ export default function PlanTrip() {
 
         const data = await response.json();
         if (isMounted) {
-          setSuggestions(data.suggestions || []);
+          const rawSuggestions = data.suggestions || [];
+          const normalized = rawSuggestions.map((p: Place) => ({
+            ...p,
+            points: calculateTaskReward(p),
+          }));
+          setSuggestions(normalized);
         }
       } catch (err) {
         console.error('Error fetching suggestions:', err);
@@ -125,7 +132,11 @@ export default function PlanTrip() {
   };
 
   const handleAddSuggestion = (place: Place) => {
-    setSelectedPlaces((prev) => [...prev, place]);
+    const placeWithPoints = {
+      ...place,
+      points: calculateTaskReward(place),
+    };
+    setSelectedPlaces((prev) => [...prev, placeWithPoints]);
     setSuggestions((prev) => prev.filter((p) => p.name !== place.name));
   };
 
@@ -134,7 +145,7 @@ export default function PlanTrip() {
     if (newPlace.name && newPlace.description) {
       const place: Place = {
         ...newPlace,
-        points: 2,
+        points: calculateTaskReward(newPlace),
         isSelected: true,
       };
       setSelectedPlaces((prev) => [...prev, place]);
@@ -176,6 +187,9 @@ export default function PlanTrip() {
             Cancel
           </Link>
         </div>
+
+        {/* Collapsible Gamification Rulebook */}
+        <GamificationRulebook />
 
         {/* Form Container */}
         <div className="surface p-6 sm:p-8 mb-8">
