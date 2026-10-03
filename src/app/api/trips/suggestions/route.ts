@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { HfInference } from '@huggingface/inference';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { getAuthSession } from '@/lib/auth';
@@ -59,7 +59,8 @@ function getFallbackPlaces(destination: string): RawPlace[] {
 }
 
 /**
- * 1. Attempt generation via Google Gemini
+ * 1. Primary: Google Gemini with native structured JSON schema
+ * Uses official @google/genai SDK with gemini-2.5-flash
  */
 async function fetchGeminiSuggestions(
   destination: string,
@@ -73,42 +74,48 @@ async function fetchGeminiSuggestions(
     return null;
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // Try gemini-1.5-flash with fallback to gemini-1.0-pro
-  let model;
-  try {
-    model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-  } catch {
-    model = genAI.getGenerativeModel({ model: 'gemini-1.0-pro' });
-  }
+  const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `You are an expert travel assistant. Generate 7 to 10 interesting, popular places to visit in ${destination} for a ${duration}-day trip (${startDate} to ${endDate}).
-For each place, provide:
-1. "name": The landmark, attraction, or place name (string)
-2. "description": A concise, informative description of what makes it special (1 to 3 sentences, string)
-
-Return strictly a JSON array of objects with "name" and "description" fields. Do not include markdown fences, preambles, or explanations.
-Example:
-[
-  { "name": "Place Name", "description": "Engaging description of the landmark." }
-]`;
+For each place, provide a concise name and an engaging description (1 to 3 sentences) explaining why it is worth visiting.`;
 
   const timeoutPromise = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error('Gemini API timed out after 8s')), 8000)
   );
 
-  const generatePromise = model.generateContent(prompt);
-  const result = await Promise.race([generatePromise, timeoutPromise]);
-  const text = result.response.text();
+  const generatePromise = ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: {
+              type: Type.STRING,
+              description: 'Name of the landmark or attraction',
+            },
+            description: {
+              type: Type.STRING,
+              description: 'Brief description of the place and why to visit',
+            },
+          },
+          required: ['name', 'description'],
+        },
+      },
+    },
+  });
 
-  // Strip possible markdown fences or preambles
-  const cleaned = text.replace(/```(?:json)?\n?|\n?```/g, '').trim();
-  const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) {
-    throw new Error('Gemini response did not contain a valid JSON array');
+  const response = await Promise.race([generatePromise, timeoutPromise]);
+  const jsonText = response.text?.trim();
+  if (!jsonText) {
+    throw new Error('Gemini returned empty response text');
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  // Guaranteed valid JSON array matching the schema
+  const parsed = JSON.parse(jsonText);
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error('Gemini returned an empty suggestions list');
   }
@@ -124,7 +131,7 @@ Example:
 }
 
 /**
- * 2. Attempt generation via Hugging Face (Mistral-7B)
+ * 2. Fallback: Hugging Face with chatCompletion()
  */
 async function fetchHuggingFaceSuggestions(
   destination: string,
@@ -137,31 +144,35 @@ async function fetchHuggingFaceSuggestions(
   }
 
   const hf = new HfInference(apiKey);
-  const prompt = `<s>[INST] Generate 7 to 10 recommended places to visit in ${destination} for a ${duration}-day trip.
-Format strictly as a JSON array of objects with "name" and "description" keys. Do not include conversational text or markdown code fences.
-Example:
-[{"name": "Landmark Name", "description": "Brief description of why this spot is worth visiting."}] [/INST]`;
 
   const timeoutPromise = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error('HuggingFace API timed out after 10s')), 10000)
   );
 
-  const textGenPromise = hf.textGeneration({
-    model: 'mistralai/Mistral-7B-Instruct-v0.2',
-    inputs: prompt,
-    parameters: {
-      max_new_tokens: 800,
-      temperature: 0.7,
-      top_p: 0.9,
-      return_full_text: false,
-    },
+  const chatPromise = hf.chatCompletion({
+    model: 'mistralai/Mistral-7B-Instruct-v0.3',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an expert travel planner. Return strictly a JSON array of objects with "name" and "description" fields. No markdown formatting, no preambles, no explanations.',
+      },
+      {
+        role: 'user',
+        content: `Generate 7 to 10 recommended places to visit in ${destination} for a ${duration}-day trip. Format strictly as JSON: [{"name": "Landmark Name", "description": "Engaging description"}]`,
+      },
+    ],
+    max_tokens: 800,
+    temperature: 0.7,
   });
 
-  const response = await Promise.race([textGenPromise, timeoutPromise]);
-  const cleaned = response.generated_text.replace(/```(?:json)?\n?|\n?```/g, '').trim();
+  const response = await Promise.race([chatPromise, timeoutPromise]);
+  const rawContent = response.choices?.[0]?.message?.content?.trim() || '';
+
+  // Clean possible markdown code fences if present in chat response
+  const cleaned = rawContent.replace(/```(?:json)?\n?|\n?```/g, '').trim();
   const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
-    throw new Error('HuggingFace response did not contain a valid JSON array');
+    throw new Error('HuggingFace chatCompletion response did not contain a valid JSON array');
   }
 
   const parsed = JSON.parse(jsonMatch[0]);
@@ -210,24 +221,24 @@ export async function POST(request: Request) {
     let rawPlaces: RawPlace[] | null = null;
     let providerUsed: 'gemini' | 'huggingface' | 'fallback' = 'fallback';
 
-    // ─── Step 1: Try Gemini First ──────────────────────────────────────────
+    // ─── Step 1: Try Gemini First (gemini-2.5-flash with structured JSON) ──
     try {
       rawPlaces = await fetchGeminiSuggestions(cleanDestination, duration, startDate, endDate);
       if (rawPlaces && rawPlaces.length > 0) {
         providerUsed = 'gemini';
-        logger.info({ destination: cleanDestination, provider: 'gemini', count: rawPlaces.length }, 'Generated trip suggestions with Gemini');
+        logger.info({ destination: cleanDestination, provider: 'gemini', count: rawPlaces.length }, 'Generated trip suggestions with Gemini (gemini-2.5-flash)');
       }
     } catch (geminiErr: any) {
       logger.warn({ err: geminiErr.message || geminiErr, destination: cleanDestination }, 'Gemini suggestions failed, attempting Hugging Face fallback');
     }
 
-    // ─── Step 2: Try Hugging Face Fallback ──────────────────────────────────
+    // ─── Step 2: Try Hugging Face Fallback (chatCompletion) ─────────────────
     if (!rawPlaces || rawPlaces.length === 0) {
       try {
         rawPlaces = await fetchHuggingFaceSuggestions(cleanDestination, duration);
         if (rawPlaces && rawPlaces.length > 0) {
           providerUsed = 'huggingface';
-          logger.info({ destination: cleanDestination, provider: 'huggingface', count: rawPlaces.length }, 'Generated trip suggestions with Hugging Face');
+          logger.info({ destination: cleanDestination, provider: 'huggingface', count: rawPlaces.length }, 'Generated trip suggestions with Hugging Face (chatCompletion)');
         }
       } catch (hfErr: any) {
         logger.warn({ err: hfErr.message || hfErr, destination: cleanDestination }, 'Hugging Face suggestions failed, falling back to static landmarks');
@@ -257,6 +268,7 @@ export async function POST(request: Request) {
 
     return apiSuccess({
       suggestions,
+      places: suggestions,
       provider: providerUsed,
     }, 200);
   } catch (error) {

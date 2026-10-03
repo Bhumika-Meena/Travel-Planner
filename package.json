@@ -12,7 +12,7 @@
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --passWithNoTests --forceExit"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
+    "@google/genai": "^2.27.0",
     "@heroicons/react": "^2.1.1",
     "@huggingface/inference": "^3.7.0",
     "@types/js-cookie": "^3.0.6",
