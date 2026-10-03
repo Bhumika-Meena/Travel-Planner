@@ -12,7 +12,7 @@ export const BADGES: BadgeDefinition[] = [
     name: 'First Step',
     description: 'Completed your first exploration activity',
     icon: '🧭',
-    condition: (points) => points >= 2,
+    condition: (points) => points >= 10,
   },
   {
     id: 'pathfinder',
@@ -80,7 +80,7 @@ export const BADGES: BadgeDefinition[] = [
 ];
 
 // Level thresholds by points
-const LEVEL_THRESHOLDS = [
+export const LEVEL_THRESHOLDS = [
   0,     // Level 1: 0-99
   100,   // Level 2: 100-249
   250,   // Level 3: 250-449
@@ -92,6 +92,19 @@ const LEVEL_THRESHOLDS = [
   2500,  // Level 9: 2500-3499
   3500,  // Level 10: 3500+
 ];
+
+export const LEVEL_NAMES: Record<number, string> = {
+  1: 'Beginner Explorer',
+  2: 'Local Sightseer',
+  3: 'City Roamer',
+  4: 'Regional Voyager',
+  5: 'Proven Adventurer',
+  6: 'Elite Traveler',
+  7: 'Veteran Trekker',
+  8: 'Globe Master',
+  9: 'Grand Expeditionist',
+  10: 'Legendary Explorer',
+};
 
 /**
  * Calculate user level based on authoritative points scale
