@@ -1,6 +1,6 @@
 /**
  * Integration tests for POST /api/trips/suggestions.
- * Tests the fallback chain: Gemini -> Hugging Face -> Static Fallback.
+ * Tests the fallback chain and diagnostic instrumentation: Gemini -> Hugging Face -> Static Fallback.
  */
 
 import { jest, describe, beforeEach, afterEach, it, expect } from '@jest/globals';
@@ -89,6 +89,20 @@ describe('POST /api/trips/suggestions', () => {
     expect([10, 12, 15]).toContain(data.places[0].points);
     expect([10, 12, 15]).toContain(data.places[1].points);
     expect(mockChatCompletion).not.toHaveBeenCalled();
+
+    // Verify diagnostics metadata
+    expect(data.diagnostics).toEqual({
+      gemini: {
+        attempted: true,
+        status: 'success',
+        error: null,
+      },
+      huggingface: {
+        attempted: false,
+        status: 'skipped',
+        error: null,
+      },
+    });
   });
 
   it('falls back to Hugging Face if Gemini fails or times out', async () => {
@@ -119,14 +133,25 @@ describe('POST /api/trips/suggestions', () => {
     expect(data.places).toHaveLength(1);
     expect(data.places[0].name).toBe('Trevi Fountain');
     expect([10, 12, 15]).toContain(data.places[0].points);
+
+    // Verify diagnostics metadata
+    expect(data.diagnostics.gemini.attempted).toBe(true);
+    expect(data.diagnostics.gemini.status).toBe('failed');
+    expect(data.diagnostics.gemini.error).toContain('503 Unavailable');
+
+    expect(data.diagnostics.huggingface).toEqual({
+      attempted: true,
+      status: 'success',
+      error: null,
+    });
   });
 
   it('falls back to static landmarks if both Gemini and Hugging Face fail', async () => {
     process.env.GEMINI_API_KEY = 'AIzaSyRealKeyForTesting1234567890';
     process.env.HUGGINGFACE_API_KEY = 'hf_realTokenForTesting1234567890';
 
-    mockGenerateContent.mockRejectedValueOnce(new Error('Gemini failed'));
-    mockChatCompletion.mockRejectedValueOnce(new Error('HF failed'));
+    mockGenerateContent.mockRejectedValueOnce(new Error('Gemini model not found: 404'));
+    mockChatCompletion.mockRejectedValueOnce(new Error('HuggingFace 401 Unauthorized token'));
 
     const res = await POST(makeRequest({ destination: 'Tokyo' }) as any);
     expect(res.status).toBe(200);
@@ -139,6 +164,20 @@ describe('POST /api/trips/suggestions', () => {
       expect([10, 12, 15]).toContain(place.points);
       expect(place.isSelected).toBe(true);
     }
+
+    // Verify diagnostics metadata
+    expect(data.diagnostics).toEqual({
+      gemini: {
+        attempted: true,
+        status: 'failed',
+        error: expect.stringContaining('404'),
+      },
+      huggingface: {
+        attempted: true,
+        status: 'failed',
+        error: expect.stringContaining('401'),
+      },
+    });
   });
 
   it('falls back directly when keys are placeholders without calling API', async () => {
@@ -152,5 +191,19 @@ describe('POST /api/trips/suggestions', () => {
     expect(data.provider).toBe('fallback');
     expect(mockGenerateContent).not.toHaveBeenCalled();
     expect(mockChatCompletion).not.toHaveBeenCalled();
+
+    // Verify diagnostics metadata indicates skipped due to placeholder
+    expect(data.diagnostics).toEqual({
+      gemini: {
+        attempted: false,
+        status: 'skipped',
+        error: 'GEMINI_API_KEY is a placeholder',
+      },
+      huggingface: {
+        attempted: false,
+        status: 'skipped',
+        error: 'HUGGINGFACE_API_KEY is a placeholder',
+      },
+    });
   });
 });
