@@ -112,7 +112,7 @@ function sanitizeProviderError(err: unknown): string {
 
 /**
  * 1. Primary: Google Gemini with native structured JSON schema
- * Uses official @google/genai SDK with gemini-2.5-flash
+ * Uses official @google/genai SDK with gemini-3.8-flash
  */
 async function fetchGeminiSuggestions(
   destination: string,
@@ -131,7 +131,7 @@ For each place, provide a concise name and an engaging description (1 to 3 sente
   );
 
   const generatePromise = ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
@@ -303,7 +303,7 @@ export async function POST(request: Request) {
         diagnostics.gemini.error = null;
         logger.info(
           { destination: cleanDestination, provider: 'gemini', count: rawPlaces.length },
-          'Generated trip suggestions with Gemini (gemini-2.5-flash)'
+          'Generated trip suggestions with Gemini (gemini-3.8-flash)'
         );
       } catch (geminiErr: any) {
         diagnostics.gemini.status = 'failed';
