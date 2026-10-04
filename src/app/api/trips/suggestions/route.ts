@@ -183,6 +183,7 @@ For each place, provide a concise name and an engaging description (1 to 3 sente
 
 /**
  * 2. Fallback: Hugging Face with chatCompletion()
+ * Uses Hugging Face Inference Providers automatic routing with Qwen/Qwen2.5-7B-Instruct-1M
  */
 async function fetchHuggingFaceSuggestions(
   destination: string,
@@ -196,7 +197,8 @@ async function fetchHuggingFaceSuggestions(
   );
 
   const chatPromise = hf.chatCompletion({
-    model: 'mistralai/Mistral-7B-Instruct-v0.3',
+    endpointUrl: 'https://router.huggingface.co',
+    model: 'Qwen/Qwen2.5-7B-Instruct-1M',
     messages: [
       {
         role: 'system',
@@ -216,14 +218,35 @@ async function fetchHuggingFaceSuggestions(
 
   // Clean possible markdown code fences if present in chat response
   const cleaned = rawContent.replace(/```(?:json)?\n?|\n?```/g, '').trim();
+
+  let parsed: any = null;
   const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) {
-    throw new Error('HuggingFace chatCompletion response did not contain a valid JSON array');
+  if (jsonMatch) {
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      // Fall through to object parse
+    }
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  if (!parsed) {
+    try {
+      const obj = JSON.parse(cleaned);
+      if (Array.isArray(obj)) {
+        parsed = obj;
+      } else if (obj && typeof obj === 'object') {
+        const candidate = obj.places || obj.suggestions || obj.items || obj.recommendations;
+        if (Array.isArray(candidate)) {
+          parsed = candidate;
+        }
+      }
+    } catch {
+      // Invalid JSON
+    }
+  }
+
   if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error('HuggingFace returned an empty suggestions list');
+    throw new Error('HuggingFace chatCompletion response did not contain a valid JSON array');
   }
 
   const validPlaces = parsed
@@ -335,7 +358,7 @@ export async function POST(request: Request) {
           diagnostics.huggingface.error = null;
           logger.info(
             { destination: cleanDestination, provider: 'huggingface', count: rawPlaces.length },
-            'Generated trip suggestions with Hugging Face (chatCompletion)'
+            'Generated trip suggestions with Hugging Face (Qwen/Qwen2.5-7B-Instruct-1M)'
           );
         } catch (hfErr: any) {
           diagnostics.huggingface.status = 'failed';
